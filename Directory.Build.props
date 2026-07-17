@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier Condition="'$(OutputType)' == 'WinExe'">win-x64</RuntimeIdentifier>
+    <Product>SeedDormitoryCorridor</Product>
+    <Company>SeedDormitoryCorridor contributors</Company>
+    <Copyright>Copyright © SeedDormitoryCorridor contributors</Copyright>
+    <VersionPrefix>0.1.0</VersionPrefix>
+  </PropertyGroup>
+</Project>

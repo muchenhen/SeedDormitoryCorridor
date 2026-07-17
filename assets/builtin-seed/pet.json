@@ -1,0 +1,20 @@
+{
+  "id": "builtin-seed",
+  "displayName": "走廊种子",
+  "description": "白荆科技宿舍走廊内置示例宠物。",
+  "spritesheetPath": "spritesheet.png",
+  "desktopPet": {
+    "profile": "codex-pet-v2",
+    "defaultScale": 1.0,
+    "renderMode": "smooth",
+    "alphaThreshold": 16,
+    "behavior": {
+      "onShow": "waving",
+      "onSingleClick": "jumping",
+      "onDoubleClick": "waving",
+      "onDragLeft": "running-left",
+      "onDragRight": "running-right",
+      "afterInteraction": "idle"
+    }
+  }
+}

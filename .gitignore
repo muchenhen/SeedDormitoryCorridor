@@ -1,0 +1,32 @@
+# .NET build and package outputs
+**/bin/
+**/obj/
+artifacts/
+publish/
+TestResults/
+BenchmarkDotNet.Artifacts/
+*.nupkg
+*.snupkg
+coverage*.xml
+coverage*.json
+
+# IDE and editor state
+.vs/
+.idea/
+.vscode/
+_ReSharper*/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Installer output
+installer/Output/
+
+# Accidental local output from the asset generator
+tools/assets/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
