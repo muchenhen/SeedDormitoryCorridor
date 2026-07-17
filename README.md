@@ -2,6 +2,8 @@
 
 `SeedDormitoryCorridor` 是面向 Windows 11 x64 的通用 2D 桌面宠物应用。它使用 WinForms + Win32 Layered Window，在不引入浏览器、游戏引擎或插件代码的前提下，提供逐像素透明、按 Alpha 命中、动画调度和本地宠物包管理。
 
+当前公开版本为 `v0.1.0-alpha.1`。安装包和免安装 ZIP 可从 [GitHub Releases](https://github.com/muchenhen/SeedDormitoryCorridor/releases) 下载；alpha 版本尚未进行 Authenticode 签名，Windows SmartScreen 可能提示未知发布者。
+
 ## 当前功能
 
 - 默认显示内置苏筱桌宠（`spritesheet-chat-output.png`），并可切换到内置田偌；小豆人仅作为内部启动故障回退。
@@ -32,6 +34,14 @@ dotnet test SeedDormitoryCorridor.sln -c Release --no-build
 ```
 
 自包含产物默认位于 `artifacts/publish`，安装包位于 `installer/Output`。
+
+正式双包发布在本机执行，不使用 GitHub Actions：
+
+```powershell
+./scripts/release.ps1
+```
+
+该命令生成安装包、免安装 ZIP 和 `SHA256SUMS.txt`；完整版本策略和发布步骤见 [`docs/releasing.md`](docs/releasing.md)。
 
 ## 动画与交互
 

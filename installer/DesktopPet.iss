@@ -1,13 +1,26 @@
 #define MyAppName "白荆科技宿舍走廊"
 #define MyAppEnglishName "SeedDormitoryCorridor"
 #define MyAppExeName "SeedDormitoryCorridor.App.exe"
-#define MyAppVersion "0.1.0"
+
+#ifndef MyAppVersion
+  #error MyAppVersion must be supplied by scripts/publish.ps1
+#endif
+#ifndef MyAppVersionNumeric
+  #error MyAppVersionNumeric must be supplied by scripts/publish.ps1
+#endif
+#ifndef MyAppSourceDir
+  #define MyAppSourceDir "..\artifacts\publish"
+#endif
+#ifndef MyInstallerOutputDir
+  #define MyInstallerOutputDir "Output"
+#endif
 
 [Setup]
 AppId={{51D63DD5-5E96-4A60-AC56-BA303DDAB7E1}
 AppName={#MyAppName}
 AppVerName={#MyAppName} {#MyAppVersion}
 AppVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppVersionNumeric}
 AppPublisher=SeedDormitoryCorridor contributors
 DefaultDirName={localappdata}\Programs\{#MyAppEnglishName}
 DefaultGroupName={#MyAppName}
@@ -15,7 +28,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputDir=Output
+OutputDir={#MyInstallerOutputDir}
 OutputBaseFilename=SeedDormitoryCorridor-{#MyAppVersion}-win-x64-setup
 SetupIconFile=..\assets\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
@@ -31,7 +44,7 @@ LicenseFile=..\LICENSE
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加任务："; Flags: unchecked
 
 [Files]
-Source: "..\artifacts\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#MyAppSourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
@@ -43,7 +56,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "启动 {#MyAppName}"; Flags: no
 [Code]
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
-  if CurUninstallStep = usPostUninstall then
+  if (CurUninstallStep = usPostUninstall) and (not UninstallSilent) then
   begin
     if MsgBox('是否同时删除用户配置、日志和已安装的宠物？' + #13#10 +
               '选择“否”将保留这些数据，便于以后重新安装。',

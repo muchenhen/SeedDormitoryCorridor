@@ -40,3 +40,13 @@ dotnet format SeedDormitoryCorridor.sln --verify-no-changes --no-restore
 自包含发布版受控启动成功，日志记录 `Loaded pet id=builtin-seed`；第二实例自动退出且只保留一个运行实例。启动完成后的 5 秒动画窗口 CPU 增量约 0.016 秒（单次短样本，不代替长期资源测试）。
 
 当前机器没有安装或配置 `ISCC.exe`，因此 `.iss` 已实现但安装器 EXE 未在本环境编译。真实透明、鼠标落到后方、焦点/Alt+Tab、混合 DPI、多显示器、会话结束、Explorer 重启、托盘正常退出、安装/覆盖/卸载和长期 GDI 稳定性仍须按人工清单验证。受控冒烟进程由测试工具强制停止，不计作“托盘退出”验收。
+
+## 2026-07-18 v0.1.0-alpha.1 发布准备
+
+- 采用 Semantic Versioning，将首个粗糙公开版本定为 `v0.1.0-alpha.1`。
+- 新增完全本地的正式双包流程，不使用 GitHub Actions；一次生成当前用户安装包、免安装 ZIP 和 SHA-256 校验文件。
+- 发布输出使用隔离 staging 并在每次构建前清理，避免旧程序集或旧内置宠物混入新包。
+- Release build 成功，0 warnings、0 errors；Runtime 11、Rendering 10、Assets 17，共 38 项测试全部通过。
+- `publish.ps1` 成功；Inno Setup 6.7.3 编译成功。产物版本、ZIP 单一顶层目录、无 PDB、三个内置宠物和 SHA-256 重新计算均已检查。
+
+安装包尚未进行 Authenticode 签名。真实桌面行为、交互式安装/覆盖/卸载、SmartScreen 和 GitHub 下载后哈希仍须按人工清单验证，不能由上述自动检查替代。
