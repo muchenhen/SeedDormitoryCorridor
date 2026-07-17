@@ -31,6 +31,39 @@ public sealed class PetPackageLoaderTests
     }
 
     [Fact]
+    public void RejectsUnsupportedSpriteVersion()
+    {
+        using var package = new TestPackage();
+        package.WriteManifest("spritesheet.png", spriteVersionNumber: 3);
+
+        ValidationResult result = new PetPackageLoader().ValidateAndLoad(package.Path, out _);
+
+        Assert.Contains(result.Issues, issue => issue.Code == "manifest.spriteVersionNumber.invalid");
+    }
+
+    [Fact]
+    public void LoadsVersion2ElevenRowAtlas()
+    {
+        using var package = TestPackage.CreateValid(spriteVersionNumber: 2);
+
+        using PetPackage loaded = new PetPackageLoader().Load(package.Path);
+
+        Assert.Equal(2, loaded.Manifest.SpriteVersionNumber);
+        Assert.Equal((1536, 2288, 11), (loaded.Atlas.Width, loaded.Atlas.Height, loaded.Atlas.Rows));
+    }
+
+    [Fact]
+    public void RejectsVersion2DimensionsWhenVersionNumberIsMissing()
+    {
+        using var package = TestPackage.CreateValid(spriteVersionNumber: 2);
+        package.WriteManifest("spritesheet.png");
+
+        ValidationResult result = new PetPackageLoader().ValidateAndLoad(package.Path, out _);
+
+        Assert.Contains(result.Issues, issue => issue.Code == "atlas.dimensions");
+    }
+
+    [Fact]
     public void ReportsInvalidJsonWithPathInformation()
     {
         using var package = new TestPackage();
@@ -141,11 +174,14 @@ public sealed class PetPackageLoaderTests
 
         internal string Path { get; }
 
-        internal static TestPackage CreateValid()
+        internal static TestPackage CreateValid(int? spriteVersionNumber = null)
         {
             var package = new TestPackage();
-            package.WriteManifest("spritesheet.png");
-            AtlasDefinition atlas = new CodexPetV2Profile().CreateAtlasDefinition(new PetManifest());
+            package.WriteManifest("spritesheet.png", spriteVersionNumber: spriteVersionNumber);
+            AtlasDefinition atlas = new CodexPetV2Profile().CreateAtlasDefinition(new PetManifest
+            {
+                SpriteVersionNumber = spriteVersionNumber,
+            });
             using var bitmap = new Bitmap(atlas.Width, atlas.Height, PixelFormat.Format32bppArgb);
             using (Graphics graphics = Graphics.FromImage(bitmap))
             {
@@ -160,12 +196,13 @@ public sealed class PetPackageLoaderTests
             return package;
         }
 
-        internal void WriteManifest(string spritePath, string? profile = null)
+        internal void WriteManifest(string spritePath, string? profile = null, int? spriteVersionNumber = null)
         {
             var manifest = new
             {
                 id = "test-pet",
                 displayName = "Test Pet",
+                spriteVersionNumber,
                 spritesheetPath = spritePath,
                 desktopPet = profile is null ? null : new { profile },
             };

@@ -4,7 +4,8 @@
 
 ## 当前功能
 
-- 安装和切换多个宠物，兼容 ChatGPT/OpenAI Hatch Pet 的固定 8×9 `codex-pet-v2` Atlas。
+- 默认显示内置苏筱桌宠（`spritesheet-chat-output.png`），小豆人仅作为内部启动故障回退。
+- 安装和切换多个宠物，兼容 ChatGPT/OpenAI 的 8×9 sprite v1 与 8×11 sprite v2 `codex-pet-v2` Atlas。
 - CPU 侧一次解码 PNG，复用 32-bit premultiplied BGRA 后备缓冲、DIB 与 HDC，通过 `UpdateLayeredWindow` 提交。
 - 透明像素穿透、身体拖拽、完全鼠标穿透、总在最前、负坐标多显示器和 Per-Monitor V2 DPI。
 - 九种动画、优先级/中断/循环/完成跳转、按真实帧时长唤醒，以及带权重和冷却的特殊 Idle。
@@ -51,7 +52,7 @@ sample-pet/
 }
 ```
 
-未声明 profile 时，仅 1536×1872 PNG 会自动识别为 `codex-pet-v2`；程序不会猜测其他网格。完整动画表、可选字段和校验规则见 [资产格式](docs/asset-format.md)。
+未声明 profile 时，1536×1872（sprite v1）或 1536×2288（sprite v2）PNG 会自动识别为 `codex-pet-v2`；程序不会猜测其他网格。完整动画表、可选字段和校验规则见 [资产格式](docs/asset-format.md)。
 
 ## 数据位置
 

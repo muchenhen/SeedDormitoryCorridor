@@ -28,6 +28,7 @@ public sealed class LayeredPetWindow : Form
 
     public event EventHandler? PetSingleClick;
     public event EventHandler? PetDoubleClick;
+    public event EventHandler<PetContextMenuEventArgs>? PetContextMenuRequested;
     public event EventHandler<PetDragDirectionEventArgs>? PetDragDirectionChanged;
     public event EventHandler? PetDragEnded;
     public event EventHandler? DpiScaleChanged;
@@ -159,6 +160,12 @@ public sealed class LayeredPetWindow : Form
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
+        if (e.Button == MouseButtons.Right && !FullClickThrough)
+        {
+            PetContextMenuRequested?.Invoke(this, new PetContextMenuEventArgs(PointToScreen(e.Location)));
+            return;
+        }
+
         if (e.Button != MouseButtons.Left || !Capture)
         {
             return;
@@ -227,4 +234,9 @@ public sealed class LayeredPetWindow : Form
 public sealed class PetDragDirectionEventArgs(bool left) : EventArgs
 {
     public bool Left { get; } = left;
+}
+
+public sealed class PetContextMenuEventArgs(Point screenLocation) : EventArgs
+{
+    public Point ScreenLocation { get; } = screenLocation;
 }

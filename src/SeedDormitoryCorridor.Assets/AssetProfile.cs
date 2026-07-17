@@ -9,10 +9,13 @@ public sealed record AtlasDefinition(
     int Rows,
     int FrameWidth,
     int FrameHeight,
-    AnimationCatalog Animations)
+    AnimationCatalog Animations,
+    IReadOnlyCollection<(int Row, int Column)>? AdditionalRequiredCells = null)
 {
     public IEnumerable<(int Row, int Column)> RequiredCells =>
-        Animations.All.SelectMany(animation => Enumerable.Range(0, animation.FrameCount).Select(column => (animation.Row, column)));
+        Animations.All
+            .SelectMany(animation => Enumerable.Range(0, animation.FrameCount).Select(column => (animation.Row, column)))
+            .Concat(AdditionalRequiredCells ?? []);
 
     public IEnumerable<(int Row, int Column)> UnusedCells
     {
@@ -43,6 +46,8 @@ public interface IAssetProfile
 public sealed class CodexPetV2Profile : IAssetProfile
 {
     public const string Id = "codex-pet-v2";
+    public const int Version1Height = 1872;
+    public const int Version2Height = 2288;
 
     public string ProfileId => Id;
 
@@ -61,7 +66,22 @@ public sealed class CodexPetV2Profile : IAssetProfile
             new("running", 7, [120, 120, 120, 120, 120, 220]),
             new("review", 8, [150, 150, 150, 150, 150, 280], AnimationPlaybackMode.Count, 2, "idle", 5),
         ];
-        return new AtlasDefinition(1536, 1872, 8, 9, 192, 208, new AnimationCatalog(animations));
+        bool isVersion2 = manifest.SpriteVersionNumber == 2;
+        int rows = isVersion2 ? 11 : 9;
+        IReadOnlyCollection<(int Row, int Column)> lookCells = isVersion2
+            ? new[] { (Row: 0, Column: 6) }
+                .Concat(Enumerable.Range(9, 2).SelectMany(row => Enumerable.Range(0, 8).Select(column => (Row: row, Column: column))))
+                .ToArray()
+            : [];
+        return new AtlasDefinition(
+            1536,
+            isVersion2 ? Version2Height : Version1Height,
+            8,
+            rows,
+            192,
+            208,
+            new AnimationCatalog(animations),
+            lookCells);
     }
 }
 

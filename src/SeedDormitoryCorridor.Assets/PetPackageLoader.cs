@@ -101,11 +101,13 @@ public sealed class PetPackageLoader
         {
             decoded = DecodedSpriteSheet.DecodePng(spritePath);
             string profileId = manifest.DesktopPet?.Profile ??
-                (decoded.Width == 1536 && decoded.Height == 1872 ? CodexPetV2Profile.Id : string.Empty);
+                (decoded.Width == 1536 && decoded.Height is CodexPetV2Profile.Version1Height or CodexPetV2Profile.Version2Height
+                    ? CodexPetV2Profile.Id
+                    : string.Empty);
             if (!profiles.TryGet(profileId, out IAssetProfile? profile) || profile is null)
             {
                 result.AddError("profile.unsupported", string.IsNullOrEmpty(profileId)
-                    ? "未声明 profile，且图片尺寸不匹配 codex-pet-v2。"
+                    ? "未声明 profile，且图片尺寸不匹配受支持的 codex-pet-v2 Atlas。"
                     : $"不支持资产 profile '{profileId}'。", "$.desktopPet.profile");
                 return result;
             }
@@ -155,6 +157,11 @@ public sealed class PetPackageLoader
         if (!PathSecurity.IsSafeRelativePath(manifest.SpritesheetPath))
         {
             result.AddError("manifest.spritesheetPath.invalid", "spritesheetPath 必须是包内相对路径且不能包含 '..'。", "$.spritesheetPath");
+        }
+
+        if (manifest.SpriteVersionNumber is int spriteVersion && spriteVersion is not (1 or 2))
+        {
+            result.AddError("manifest.spriteVersionNumber.invalid", "spriteVersionNumber 只能是 1 或 2。", "$.spriteVersionNumber");
         }
 
         if (manifest.DesktopPet?.DefaultScale is float scale && (scale < 0.25f || scale > 4f))

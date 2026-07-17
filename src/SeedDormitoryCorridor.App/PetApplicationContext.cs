@@ -14,6 +14,8 @@ namespace SeedDormitoryCorridor.App;
 
 public sealed class PetApplicationContext : ApplicationContext
 {
+    private const string DefaultPetId = "builtin-su-xiao";
+    private const string RecoveryPetId = "builtin-seed";
     private readonly AppPaths paths;
     private readonly AppLogger logger;
     private readonly SingleInstanceCoordinator instance;
@@ -158,8 +160,22 @@ public sealed class PetApplicationContext : ApplicationContext
 
     private void LoadInitialPet()
     {
-        string preferred = appSettings.CurrentPetId ?? "builtin-seed";
-        if (!TrySwitchPet(preferred, showError: false) && !TrySwitchPet("builtin-seed", showError: false))
+        string preferred = string.IsNullOrWhiteSpace(appSettings.CurrentPetId) ||
+            string.Equals(appSettings.CurrentPetId, RecoveryPetId, StringComparison.OrdinalIgnoreCase)
+                ? DefaultPetId
+                : appSettings.CurrentPetId;
+        bool loaded = TrySwitchPet(preferred, showError: false);
+        if (!loaded && !string.Equals(preferred, DefaultPetId, StringComparison.OrdinalIgnoreCase))
+        {
+            loaded = TrySwitchPet(DefaultPetId, showError: false);
+        }
+
+        if (!loaded)
+        {
+            loaded = TrySwitchPet(RecoveryPetId, showError: false);
+        }
+
+        if (!loaded)
         {
             throw new InvalidOperationException("内置安全宠物无法加载，请重新安装应用。 ");
         }
@@ -262,6 +278,7 @@ public sealed class PetApplicationContext : ApplicationContext
 
     private void WireWindowEvents(LayeredPetWindow window)
     {
+        window.PetContextMenuRequested += (_, args) => trayIcon.ContextMenuStrip?.Show(args.ScreenLocation);
         window.PetSingleClick += (_, _) => PlayInteraction(currentPackage?.Manifest.DesktopPet?.Behavior?.OnSingleClick ?? "jumping", 10);
         window.PetDoubleClick += (_, _) => PlayInteraction(currentPackage?.Manifest.DesktopPet?.Behavior?.OnDoubleClick ?? "waving", 10);
         window.PetDragDirectionChanged += (_, args) =>
@@ -542,8 +559,8 @@ public sealed class PetApplicationContext : ApplicationContext
 
     private void DeleteCurrentPet()
     {
-        string id = appSettings.CurrentPetId ?? "builtin-seed";
-        if (string.Equals(id, "builtin-seed", StringComparison.OrdinalIgnoreCase))
+        string id = appSettings.CurrentPetId ?? DefaultPetId;
+        if (IsBuiltInPet(id))
         {
             MessageBox.Show("内置安全宠物不能删除。", "删除宠物", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
@@ -555,7 +572,7 @@ public sealed class PetApplicationContext : ApplicationContext
             return;
         }
 
-        if (TrySwitchPet("builtin-seed"))
+        if (TrySwitchPet(DefaultPetId))
         {
             installer.Delete(id);
             RefreshMenus();
@@ -608,7 +625,7 @@ public sealed class PetApplicationContext : ApplicationContext
 
     private List<PetListItem> GetPetItems()
     {
-        var items = new List<PetListItem> { new("builtin-seed", "走廊种子（内置）") };
+        var items = new List<PetListItem> { new(DefaultPetId, "苏筱（内置）") };
         foreach ((string id, string path) in installer.ListInstalled())
         {
             string displayName = id;
@@ -633,14 +650,24 @@ public sealed class PetApplicationContext : ApplicationContext
 
     private string? ResolvePetPath(string id)
     {
-        if (string.Equals(id, "builtin-seed", StringComparison.OrdinalIgnoreCase))
+        string? builtInDirectory = id.ToLowerInvariant() switch
         {
-            string root = Path.Combine(AppContext.BaseDirectory, "assets", "builtin-seed");
+            DefaultPetId => "builtin-su-xiao",
+            RecoveryPetId => "builtin-seed",
+            _ => null,
+        };
+        if (builtInDirectory is not null)
+        {
+            string root = Path.Combine(AppContext.BaseDirectory, "assets", builtInDirectory);
             return Directory.Exists(root) ? root : null;
         }
 
         return installer.ListInstalled().FirstOrDefault(pet => string.Equals(pet.Id, id, StringComparison.OrdinalIgnoreCase)).Path;
     }
+
+    private static bool IsBuiltInPet(string id) =>
+        string.Equals(id, DefaultPetId, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(id, RecoveryPetId, StringComparison.OrdinalIgnoreCase);
 
     private float ResolveScale(PetManifest manifest) => appSettings.PetOverrides.TryGetValue(manifest.Id!, out PetOverrides? overrides) && overrides.Scale.HasValue
         ? overrides.Scale.Value

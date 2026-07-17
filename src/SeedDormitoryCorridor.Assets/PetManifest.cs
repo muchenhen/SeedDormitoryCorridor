@@ -13,6 +13,9 @@ public sealed class PetManifest
     [JsonPropertyName("description")]
     public string? Description { get; set; }
 
+    [JsonPropertyName("spriteVersionNumber")]
+    public int? SpriteVersionNumber { get; set; }
+
     [JsonPropertyName("spritesheetPath")]
     public string? SpritesheetPath { get; set; }
 
