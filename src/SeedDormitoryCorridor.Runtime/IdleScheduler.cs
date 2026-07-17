@@ -44,10 +44,10 @@ public sealed class IdleScheduler
         int interval = Frequency switch
         {
             IdleFrequency.Off => int.MaxValue,
-            IdleFrequency.Low => 120_000,
-            IdleFrequency.Normal => 60_000,
-            IdleFrequency.High => 30_000,
-            _ => 60_000,
+            IdleFrequency.Low => 60_000,
+            IdleFrequency.Normal => 30_000,
+            IdleFrequency.High => 15_000,
+            _ => 30_000,
         };
 
         if (interactionBlocked || timestampMs - lastInteractionMs < interval)

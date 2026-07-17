@@ -27,4 +27,18 @@ public sealed class BuiltInAssetTests
         Assert.Equal("spritesheet-chat-output.png", package.Manifest.SpritesheetPath);
         Assert.Equal((1536, 1872), (package.Atlas.Width, package.Atlas.Height));
     }
+
+    [Fact]
+    public void ShippedTianRuoPetPassesTheSameValidationPipeline()
+    {
+        string repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        string assetRoot = Path.Combine(repositoryRoot, "assets", "builtin-tian-ruo");
+
+        using PetPackage package = new PetPackageLoader().Load(assetRoot);
+
+        Assert.Equal("tian-ruo", package.Manifest.Id);
+        Assert.Equal("田偌", package.Manifest.DisplayName);
+        Assert.Equal(2, package.Manifest.SpriteVersionNumber);
+        Assert.Equal((1536, 2288, 11), (package.Atlas.Width, package.Atlas.Height, package.Atlas.Rows));
+    }
 }

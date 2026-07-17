@@ -15,6 +15,7 @@ namespace SeedDormitoryCorridor.App;
 public sealed class PetApplicationContext : ApplicationContext
 {
     private const string DefaultPetId = "builtin-su-xiao";
+    private const string BuiltInTianRuoId = "tian-ruo";
     private const string RecoveryPetId = "builtin-seed";
     private readonly AppPaths paths;
     private readonly AppLogger logger;
@@ -625,7 +626,11 @@ public sealed class PetApplicationContext : ApplicationContext
 
     private List<PetListItem> GetPetItems()
     {
-        var items = new List<PetListItem> { new(DefaultPetId, "苏筱（内置）") };
+        var items = new List<PetListItem>
+        {
+            new(DefaultPetId, "苏筱（内置）"),
+            new(BuiltInTianRuoId, "田偌（内置）"),
+        };
         foreach ((string id, string path) in installer.ListInstalled())
         {
             string displayName = id;
@@ -653,6 +658,7 @@ public sealed class PetApplicationContext : ApplicationContext
         string? builtInDirectory = id.ToLowerInvariant() switch
         {
             DefaultPetId => "builtin-su-xiao",
+            BuiltInTianRuoId => "builtin-tian-ruo",
             RecoveryPetId => "builtin-seed",
             _ => null,
         };
@@ -667,6 +673,7 @@ public sealed class PetApplicationContext : ApplicationContext
 
     private static bool IsBuiltInPet(string id) =>
         string.Equals(id, DefaultPetId, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(id, BuiltInTianRuoId, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(id, RecoveryPetId, StringComparison.OrdinalIgnoreCase);
 
     private float ResolveScale(PetManifest manifest) => appSettings.PetOverrides.TryGetValue(manifest.Id!, out PetOverrides? overrides) && overrides.Scale.HasValue

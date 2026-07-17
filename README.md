@@ -4,7 +4,7 @@
 
 ## 当前功能
 
-- 默认显示内置苏筱桌宠（`spritesheet-chat-output.png`），小豆人仅作为内部启动故障回退。
+- 默认显示内置苏筱桌宠（`spritesheet-chat-output.png`），并可切换到内置田偌；小豆人仅作为内部启动故障回退。
 - 安装和切换多个宠物，兼容 ChatGPT/OpenAI 的 8×9 sprite v1 与 8×11 sprite v2 `codex-pet-v2` Atlas。
 - CPU 侧一次解码 PNG，复用 32-bit premultiplied BGRA 后备缓冲、DIB 与 HDC，通过 `UpdateLayeredWindow` 提交。
 - 透明像素穿透、身体拖拽、完全鼠标穿透、总在最前、负坐标多显示器和 Per-Monitor V2 DPI。
@@ -32,6 +32,25 @@ dotnet test SeedDormitoryCorridor.sln -c Release --no-build
 ```
 
 自包含产物默认位于 `artifacts/publish`，安装包位于 `installer/Output`。
+
+## 动画与交互
+
+内置宠物采用以下固定触发逻辑；外部宠物可通过 `desktopPet.behavior` 改写显示、单击、双击和拖拽方向对应的动画。
+
+| 触发 | 默认动画/行为 |
+| --- | --- |
+| 启动、切换宠物或重新显示 | `waving`，完成后回到 `idle` |
+| 无其他动作 | `idle` 循环 |
+| 左键单击身体 | `jumping` |
+| 左键双击身体 | `waving` |
+| 向左/向右拖拽超过 4 px | `running-left` / `running-right`；松开后回到 `idle` |
+| 右键身体 | 打开托盘菜单，不切换动画 |
+| 鼠标悬停（hover） | 当前没有动画逻辑 |
+| 托盘“播放动画”菜单 | 可手动播放资产声明的全部九种动画 |
+
+特殊待机会在没有交互且没有高优先级动画时，从 `waving`、`jumping`、`waiting`、`review` 中按 3:2:3:2 权重随机选择；不会连续重复同一种。低频、正常和高频的触发间隔分别为 60、30、15 秒；关闭后只保留普通 `idle`。`waving`/`jumping` 冷却 120 秒，`waiting`/`review` 冷却 180 秒。`failed` 和非方向性的 `running` 当前没有固定业务状态触发，只能从菜单手动播放。
+
+启用“鼠标完全穿透”后，桌宠身体不会接收单击、双击、拖拽、右键或 hover；仍可从系统托盘关闭穿透。
 
 ## 导入宠物
 

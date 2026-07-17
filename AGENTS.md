@@ -36,6 +36,14 @@ dotnet test SeedDormitoryCorridor.sln -c Release --no-build
 - `WM_NCHITTEST` 从源 spritesheet 的 CPU Alpha 读取；透明阈值默认 16。
 - 完全穿透与逐像素穿透相互独立，完全穿透始终能从托盘关闭。
 
+## 动画与交互契约
+
+- 默认常驻动画是 `idle`；显示/切换为 `waving`，单击为 `jumping`，双击为 `waving`，左右拖拽分别为 `running-left`/`running-right`，松开恢复 `idle`。Manifest 的 `desktopPet.behavior` 可覆盖这些映射。
+- 拖拽阈值为 4 px。右键只打开与托盘相同的菜单，不播放动画；完全鼠标穿透时窗口不接收任何鼠标交互，托盘必须始终可关闭穿透或退出应用。
+- 当前没有 hover 动画。若新增 hover，必须明确进入/离开、防抖、与拖拽/点击/完全穿透的优先级，并同步 README 与纯逻辑测试；不得用高频 hover 事件触发资源加载或分配 Bitmap。
+- 特殊 Idle 候选为 `waving`、`jumping`、`waiting`、`review`，权重 3:2:3:2，避免立即重复；低/普通/高频间隔分别为 60/30/15 秒。`waving`/`jumping` 冷却 120 秒，`waiting`/`review` 冷却 180 秒。
+- `failed` 与非方向性的 `running` 当前没有固定业务状态绑定，仅能手动播放。新增业务状态触发时必须走 Runtime 播放器的优先级/完成跳转，不得在窗口事件中直接操作 Atlas 帧。
+
 ## 资产安全约束
 
 资产包始终是不可信输入：只接受受限大小的 PNG 和数据/文档文件；拒绝绝对路径、`..`、重解析点和 ZIP 路径穿越；解压前后都验证路径位于 staging 根目录；绝不执行、反射加载或覆盖应用文件。替换安装必须先验证，再通过备份目录完成可回滚切换。

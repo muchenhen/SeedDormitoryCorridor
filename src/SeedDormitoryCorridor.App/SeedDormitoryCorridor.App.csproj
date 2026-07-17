@@ -19,6 +19,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="..\..\assets\builtin-tian-ruo\**\*">
+      <Link>assets\builtin-tian-ruo\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
     <Content Include="..\..\assets\builtin-su-xiao\**\*">
       <Link>assets\builtin-su-xiao\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

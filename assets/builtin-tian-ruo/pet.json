@@ -1,0 +1,21 @@
+{
+  "id": "tian-ruo",
+  "displayName": "田偌",
+  "description": "绿色短发救援官形象的内置动画桌宠。",
+  "spriteVersionNumber": 2,
+  "spritesheetPath": "spritesheet.png",
+  "desktopPet": {
+    "profile": "codex-pet-v2",
+    "defaultScale": 1.0,
+    "renderMode": "smooth",
+    "alphaThreshold": 16,
+    "behavior": {
+      "onShow": "waving",
+      "onSingleClick": "jumping",
+      "onDoubleClick": "waving",
+      "onDragLeft": "running-left",
+      "onDragRight": "running-right",
+      "afterInteraction": "idle"
+    }
+  }
+}
