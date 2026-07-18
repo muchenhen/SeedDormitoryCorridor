@@ -121,6 +121,12 @@ public sealed class LayeredWindowRenderer : ILayeredWindowRenderer
 
     private void ConfigureGraphics(Graphics target)
     {
+        // Graphics created from a Bitmap inherits the desktop DPI and defaults
+        // to Display units. Atlas and surface rectangles are pixel coordinates;
+        // leaving the default in place magnifies a frame at 125%/150% DPI and
+        // clips its right and bottom edges inside the fixed-size back buffer.
+        target.PageUnit = GraphicsUnit.Pixel;
+        target.PageScale = 1f;
         target.CompositingMode = CompositingMode.SourceCopy;
         target.CompositingQuality = CompositingQuality.HighSpeed;
         target.PixelOffsetMode = ScalingMode == SpriteScalingMode.Pixelated ? PixelOffsetMode.Half : PixelOffsetMode.HighQuality;

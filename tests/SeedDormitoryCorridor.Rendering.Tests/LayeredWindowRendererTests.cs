@@ -9,6 +9,26 @@ namespace SeedDormitoryCorridor.Rendering.Tests;
 public sealed class LayeredWindowRendererTests
 {
     [Fact]
+    public void RenderTreatsDestinationRectangleAsPixelsAtDesktopDpi()
+    {
+        using var bitmap = new Bitmap(2, 2, PixelFormat.Format32bppPArgb);
+        bitmap.SetPixel(0, 0, Color.Red);
+        bitmap.SetPixel(1, 0, Color.Green);
+        bitmap.SetPixel(0, 1, Color.Blue);
+        bitmap.SetPixel(1, 1, Color.White);
+        using var sheet = new DecodedSpriteSheet((Bitmap)bitmap.Clone(), [255, 255, 255, 255]);
+        var atlas = new AtlasDefinition(2, 2, 1, 1, 2, 2,
+            new AnimationCatalog([new AnimationDefinition("idle", 0, [100])]));
+        using var renderer = new LayeredWindowRenderer();
+        renderer.LoadSpriteSheet(sheet, atlas);
+
+        renderer.Render(new SpriteRenderFrame(0, 0));
+
+        Assert.Equal(Color.Red.ToArgb(), renderer.Surface.GetPixel(0, 0).ToArgb());
+        Assert.Equal(Color.White.ToArgb(), renderer.Surface.GetPixel(1, 1).ToArgb());
+    }
+
+    [Fact]
     public void HitTestUsesCurrentCellThresholdAndScaling()
     {
         using var bitmap = new Bitmap(4, 2, PixelFormat.Format32bppPArgb);

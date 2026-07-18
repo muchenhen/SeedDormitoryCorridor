@@ -37,8 +37,17 @@ public sealed class DecodedSpriteSheet : IDisposable
         var bitmap = new Bitmap(source.Width, source.Height, PixelFormat.Format32bppPArgb);
         using (Graphics graphics = Graphics.FromImage(bitmap))
         {
+            // PNG DPI is metadata; atlas coordinates are always physical pixels.
+            // DrawImageUnscaled still converts between the source and destination
+            // DPI, which enlarged 96-DPI sheets on a 144-DPI desktop.
+            graphics.PageUnit = GraphicsUnit.Pixel;
+            graphics.PageScale = 1f;
             graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
-            graphics.DrawImageUnscaled(source, 0, 0);
+            graphics.DrawImage(
+                source,
+                new Rectangle(0, 0, source.Width, source.Height),
+                new Rectangle(0, 0, source.Width, source.Height),
+                GraphicsUnit.Pixel);
         }
 
         var alpha = new byte[source.Width * source.Height];

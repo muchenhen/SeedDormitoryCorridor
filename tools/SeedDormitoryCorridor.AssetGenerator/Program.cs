@@ -123,39 +123,143 @@ static void ProcessSweeperEx(string sourcePath, string repositoryRoot)
     string outputDirectory = Path.Combine(repositoryRoot, "assets", "builtin-sweeper-ex");
     Directory.CreateDirectory(outputDirectory);
     using var source = new Bitmap(sourcePath);
-    using var cleaned = new Bitmap(source.Width, source.Height, PixelFormat.Format32bppArgb);
+    const int atlasWidth = 1536;
+    const int atlasHeight = 1872;
+    if (source.Width != atlasWidth || source.Height != atlasHeight)
+    {
+        throw new InvalidDataException(
+            $"Sweeper-EX 源图必须已经是 {atlasWidth}×{atlasHeight} 的标准 Atlas，实际为 {source.Width}×{source.Height}。请先按 8×9 网格对齐素材。");
+    }
+
+    string outputPath = Path.Combine(outputDirectory, "spritesheet.png");
+    if (HasTransparentCanvas(source))
+    {
+        // Preserve an already-transparent standard Atlas byte for byte. The
+        // source intentionally has no physical-DPI chunk, while GDI+'s PNG
+        // encoder adds a 96-DPI value that used to change its decoded size.
+        if (!string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(outputPath), StringComparison.OrdinalIgnoreCase))
+        {
+            File.Copy(sourcePath, outputPath, overwrite: true);
+        }
+
+        // Copy preserves the source timestamp. Touch the generated asset so
+        // MSBuild's PreserveNewest rule replaces an older output-directory copy.
+        File.SetLastWriteTimeUtc(outputPath, DateTime.UtcNow);
+        return;
+    }
+
+    using var cleaned = new Bitmap(atlasWidth, atlasHeight, PixelFormat.Format32bppArgb);
+    cleaned.SetResolution(source.HorizontalResolution, source.VerticalResolution);
     using (Graphics g = Graphics.FromImage(cleaned))
     {
         g.Clear(Color.Transparent);
-        g.DrawImageUnscaled(source, 0, 0);
+        g.CompositingMode = CompositingMode.SourceCopy;
+        g.PageUnit = GraphicsUnit.Pixel;
+        g.PageScale = 1f;
+        g.DrawImage(
+            source,
+            new Rectangle(0, 0, atlasWidth, atlasHeight),
+            new Rectangle(0, 0, atlasWidth, atlasHeight),
+            GraphicsUnit.Pixel);
     }
 
-    // Generated previews often contain a checkerboard painted into the image.
-    // Remove only border-connected near-gray pixels so white costume pixels survive.
-    for (int y = 0; y < cleaned.Height; y++)
-    for (int x = 0; x < cleaned.Width; x++)
-    {
-        Color c = cleaned.GetPixel(x, y);
-        int spread = Math.Max(c.R, Math.Max(c.G, c.B)) - Math.Min(c.R, Math.Min(c.G, c.B));
-        if (c.A == 255 && spread <= 8 && c.R is >= 220 and <= 245 && c.G is >= 220 and <= 245 && c.B is >= 220 and <= 245)
-            cleaned.SetPixel(x, y, Color.Transparent);
-    }
+    // Generated previews can contain a checkerboard painted into the image.
+    // Only remove neutral pixels connected to the outer border; removing every
+    // near-gray pixel also erases the character's white costume and highlights.
+    RemoveBorderConnectedBackground(cleaned);
 
-    using var atlas = new Bitmap(1536, 1872, PixelFormat.Format32bppPArgb);
+    using var atlas = new Bitmap(atlasWidth, atlasHeight, PixelFormat.Format32bppPArgb);
+    atlas.SetResolution(source.HorizontalResolution, source.VerticalResolution);
     using (Graphics g = Graphics.FromImage(atlas))
     {
         g.Clear(Color.Transparent);
-        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-        g.DrawImage(cleaned, new Rectangle(0, 0, atlas.Width, atlas.Height));
         g.CompositingMode = CompositingMode.SourceCopy;
+        // The source is already a standard Atlas. Do not resample it: even a
+        // nominal 1:1 draw can soften edges and shift pixels across cell bounds.
+        g.PageUnit = GraphicsUnit.Pixel;
+        g.PageScale = 1f;
+        g.DrawImage(
+            cleaned,
+            new Rectangle(0, 0, atlasWidth, atlasHeight),
+            new Rectangle(0, 0, atlasWidth, atlasHeight),
+            GraphicsUnit.Pixel);
         using var transparent = new SolidBrush(Color.Transparent);
         int[] counts = [6, 8, 8, 4, 5, 8, 6, 6, 6];
         for (int row = 0; row < counts.Length; row++)
         for (int column = counts[row]; column < 8; column++)
             g.FillRectangle(transparent, column * 192, row * 208, 192, 208);
     }
-    atlas.Save(Path.Combine(outputDirectory, "spritesheet.png"), ImageFormat.Png);
+    atlas.Save(outputPath, ImageFormat.Png);
+}
+
+static bool HasTransparentCanvas(Bitmap bitmap) =>
+    Image.IsAlphaPixelFormat(bitmap.PixelFormat) &&
+    bitmap.GetPixel(0, 0).A == 0 &&
+    bitmap.GetPixel(bitmap.Width - 1, 0).A == 0 &&
+    bitmap.GetPixel(0, bitmap.Height - 1).A == 0 &&
+    bitmap.GetPixel(bitmap.Width - 1, bitmap.Height - 1).A == 0;
+
+static void RemoveBorderConnectedBackground(Bitmap bitmap)
+{
+    int width = bitmap.Width;
+    int height = bitmap.Height;
+    var visited = new bool[width * height];
+    var pending = new Queue<int>();
+
+    void EnqueueIfBackground(int x, int y)
+    {
+        int index = (y * width) + x;
+        if (visited[index])
+        {
+            return;
+        }
+
+        visited[index] = true;
+        if (IsBackgroundCandidate(bitmap.GetPixel(x, y)))
+        {
+            pending.Enqueue(index);
+        }
+    }
+
+    for (int x = 0; x < width; x++)
+    {
+        EnqueueIfBackground(x, 0);
+        EnqueueIfBackground(x, height - 1);
+    }
+
+    for (int y = 1; y < height - 1; y++)
+    {
+        EnqueueIfBackground(0, y);
+        EnqueueIfBackground(width - 1, y);
+    }
+
+    while (pending.Count > 0)
+    {
+        int index = pending.Dequeue();
+        int x = index % width;
+        int y = index / width;
+        bitmap.SetPixel(x, y, Color.Transparent);
+
+        EnqueueNeighbor(x - 1, y);
+        EnqueueNeighbor(x + 1, y);
+        EnqueueNeighbor(x, y - 1);
+        EnqueueNeighbor(x, y + 1);
+    }
+
+    void EnqueueNeighbor(int x, int y)
+    {
+        if (x >= 0 && x < width && y >= 0 && y < height)
+        {
+            EnqueueIfBackground(x, y);
+        }
+    }
+}
+
+static bool IsBackgroundCandidate(Color color)
+{
+    int spread = Math.Max(color.R, Math.Max(color.G, color.B)) - Math.Min(color.R, Math.Min(color.G, color.B));
+    return color.A == 255 && spread <= 8 && color.R is >= 220 and <= 255 &&
+        color.G is >= 220 and <= 255 && color.B is >= 220 and <= 255;
 }
 
 internal static class NativeIcon
