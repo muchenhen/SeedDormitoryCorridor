@@ -280,7 +280,14 @@ public sealed class PetApplicationContext : ApplicationContext
 
     private void WireWindowEvents(LayeredPetWindow window)
     {
-        window.PetContextMenuRequested += (_, args) => trayIcon.ContextMenuStrip?.Show(args.ScreenLocation);
+        window.PetContextMenuRequested += (_, args) =>
+        {
+            ContextMenuStrip? menu = trayIcon.ContextMenuStrip;
+            if (menu is not null)
+            {
+                menu.Show(window, window.PointToClient(args.ScreenLocation));
+            }
+        };
         window.PetSingleClick += (_, _) => PlayInteraction(currentPackage?.Manifest.DesktopPet?.Behavior?.OnSingleClick ?? "jumping", 10);
         window.PetDoubleClick += (_, _) => PlayInteraction(currentPackage?.Manifest.DesktopPet?.Behavior?.OnDoubleClick ?? "waving", 10);
         window.PetDragDirectionChanged += (_, args) =>
@@ -299,7 +306,7 @@ public sealed class PetApplicationContext : ApplicationContext
         window.DpiScaleChanged += (_, _) => ApplyRendererSettings();
     }
 
-    private void PlayInteraction(string animationName, int priority, bool restart = true)
+    private void PlayInteraction(string animationName, int priority, bool restart = true, bool force = false)
     {
         if (player is null || currentPackage is null || !currentPackage.Atlas.Animations.TryGet(animationName, out _))
         {
@@ -307,7 +314,7 @@ public sealed class PetApplicationContext : ApplicationContext
         }
 
         long now = clock.ElapsedMilliseconds;
-        if (player.Play(animationName, now, priority, restart: restart))
+        if (player.Play(animationName, now, priority, force: force, restart: restart))
         {
             idleScheduler.Reset(now);
             RenderCurrentFrame();
@@ -620,7 +627,7 @@ public sealed class PetApplicationContext : ApplicationContext
         foreach (AnimationDefinition animation in animations)
         {
             var item = new ToolStripMenuItem(animation.Name);
-            item.Click += (_, _) => PlayInteraction(animation.Name, animation.Priority, restart: true);
+            item.Click += (_, _) => PlayInteraction(animation.Name, animation.Priority, restart: true, force: true);
             animationMenu.DropDownItems.Add(item);
         }
     }

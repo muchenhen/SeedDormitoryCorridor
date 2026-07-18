@@ -66,6 +66,20 @@ public sealed class AnimationPlayerTests
     }
 
     [Fact]
+    public void ForcedManualSelectionRestartsAfterHighPriorityLoop()
+    {
+        var player = new AnimationPlayer(CreateCatalog(), "idle");
+        Assert.True(player.Play("high", 0));
+        Assert.True(player.Update(250));
+
+        Assert.True(player.Play("count", 250, force: true, restart: true));
+
+        Assert.Equal("count", player.State.AnimationName);
+        Assert.Equal(0, player.State.Column);
+        Assert.Equal(5, player.ActivePriority);
+    }
+
+    [Fact]
     public void SameAnimationCanRestartOrContinue()
     {
         var player = new AnimationPlayer(CreateCatalog(), "idle");
