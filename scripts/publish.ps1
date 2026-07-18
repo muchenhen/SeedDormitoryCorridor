@@ -1,13 +1,23 @@
 [CmdletBinding()]
 param(
-    [string]$OutputDirectory = (Join-Path $PSScriptRoot '..\artifacts\publish'),
+    [string]$OutputDirectory,
     [string]$Version,
     [switch]$BuildInstaller,
-    [string]$InstallerOutputDirectory = (Join-Path $PSScriptRoot '..\installer\Output')
+    [string]$InstallerOutputDirectory
 )
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$OutputDirectory = if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
+    Join-Path $repositoryRoot 'artifacts\publish'
+} else {
+    $OutputDirectory
+}
+$InstallerOutputDirectory = if ([string]::IsNullOrWhiteSpace($InstallerOutputDirectory)) {
+    Join-Path $repositoryRoot 'installer\Output'
+} else {
+    $InstallerOutputDirectory
+}
 $project = Join-Path $repositoryRoot 'src\SeedDormitoryCorridor.App\SeedDormitoryCorridor.App.csproj'
 $output = [System.IO.Path]::GetFullPath($OutputDirectory)
 

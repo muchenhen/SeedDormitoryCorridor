@@ -33,8 +33,22 @@
 ## 安装与资源
 
 - [ ] 从 GitHub Release 下载安装包、免安装 ZIP 和 `SHA256SUMS.txt`，两个包的 SHA-256 均匹配。
-- [ ] 免安装 ZIP 解压后可直接启动，且苏筱、田偌和小豆人三个内置宠物均存在。
+- [ ] 免安装 ZIP 解压后可直接启动，且苏筱、田偌和 Sweeper-EX 三个可选内置宠物均存在，小豆人故障回退资源也存在。
 - [ ] 当前用户安装、开始菜单、可选桌面快捷方式正确。
 - [ ] 覆盖安装成功；卸载默认保留配置/宠物，选择清理时删除用户数据。
 - [ ] Release 静置、隐藏、暂停时 CPU 接近空闲，无持续重绘。
 - [ ] 连续运行/切换 30 分钟，GDI Objects 和内存无持续增长。
+
+## 2026-07-18 自动辅助证据
+
+> 以下结果来自 Win32 诊断，不替代上方仍未勾选的肉眼与长时间人工验收。
+
+- Release 桌宠窗口为 `192x208`，位于 `DISPLAY1` 的 100% DPI（96 DPI）1920x1080 显示器。
+- 窗口同时具有 `WS_EX_LAYERED`、`WS_EX_TOOLWINDOW`、`WS_EX_NOACTIVATE` 和 `WS_EX_TOPMOST`，且不具有 `WS_EX_APPWINDOW`。
+- `WM_MOUSEACTIVATE` 返回 `MA_NOACTIVATE`，测试前后前台窗口句柄保持不变。
+- 13x13 像素命中采样得到 38 个实体点和 131 个透明点，完全穿透处于关闭状态。
+- 30 分钟持续运行样本内 GDI Objects `28 -> 28`（峰值 28），USER Objects `33 -> 33`（峰值 33），工作集 `82.3 -> 83.2 MiB`（峰值 83.2 MiB），私有内存 `34.2 -> 35.2 MiB`（峰值 35.2 MiB），归一化平均 CPU 为 0.035%。该样本未包含宠物切换、隐藏或暂停，因此对应组合人工项仍保持未勾选。
+- 受控输入曾使窗口从保存位置产生实际水平位移并触发位置保存，测试结束后窗口与设置均恢复到 `(1609, 641)`；输入工具会合并最后一个移动事件，因此未将完整拖拽项勾选为通过。
+- `dotnet build SeedDormitoryCorridor.sln -c Release --no-restore` 成功，0 warnings、0 errors。
+- `dotnet test SeedDormitoryCorridor.sln -c Release --no-build` 成功，41 passed。
+- `dotnet format SeedDormitoryCorridor.sln --verify-no-changes --no-restore` 成功。

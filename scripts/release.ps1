@@ -1,11 +1,16 @@
 [CmdletBinding()]
 param(
     [string]$Version,
-    [string]$OutputDirectory = (Join-Path $PSScriptRoot '..\artifacts\release')
+    [string]$OutputDirectory
 )
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$OutputDirectory = if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
+    Join-Path $repositoryRoot 'artifacts\release'
+} else {
+    $OutputDirectory
+}
 $project = Join-Path $repositoryRoot 'src\SeedDormitoryCorridor.App\SeedDormitoryCorridor.App.csproj'
 $releaseRoot = [System.IO.Path]::GetFullPath($OutputDirectory)
 
