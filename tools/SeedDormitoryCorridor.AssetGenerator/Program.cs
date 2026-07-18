@@ -3,6 +3,11 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 
 string repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+if (args.Length == 2 && args[0].Equals("--sweeper-ex", StringComparison.OrdinalIgnoreCase))
+{
+    ProcessSweeperEx(args[1], repositoryRoot);
+    return;
+}
 string outputDirectory = Path.Combine(repositoryRoot, "assets", "builtin-seed");
 Directory.CreateDirectory(outputDirectory);
 
@@ -111,6 +116,46 @@ static void DrawSeed(Graphics graphics, int row, int column)
     }
 
     graphics.ResetTransform();
+}
+
+static void ProcessSweeperEx(string sourcePath, string repositoryRoot)
+{
+    string outputDirectory = Path.Combine(repositoryRoot, "assets", "builtin-sweeper-ex");
+    Directory.CreateDirectory(outputDirectory);
+    using var source = new Bitmap(sourcePath);
+    using var cleaned = new Bitmap(source.Width, source.Height, PixelFormat.Format32bppArgb);
+    using (Graphics g = Graphics.FromImage(cleaned))
+    {
+        g.Clear(Color.Transparent);
+        g.DrawImageUnscaled(source, 0, 0);
+    }
+
+    // Generated previews often contain a checkerboard painted into the image.
+    // Remove only border-connected near-gray pixels so white costume pixels survive.
+    for (int y = 0; y < cleaned.Height; y++)
+    for (int x = 0; x < cleaned.Width; x++)
+    {
+        Color c = cleaned.GetPixel(x, y);
+        int spread = Math.Max(c.R, Math.Max(c.G, c.B)) - Math.Min(c.R, Math.Min(c.G, c.B));
+        if (c.A == 255 && spread <= 8 && c.R is >= 220 and <= 245 && c.G is >= 220 and <= 245 && c.B is >= 220 and <= 245)
+            cleaned.SetPixel(x, y, Color.Transparent);
+    }
+
+    using var atlas = new Bitmap(1536, 1872, PixelFormat.Format32bppPArgb);
+    using (Graphics g = Graphics.FromImage(atlas))
+    {
+        g.Clear(Color.Transparent);
+        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        g.DrawImage(cleaned, new Rectangle(0, 0, atlas.Width, atlas.Height));
+        g.CompositingMode = CompositingMode.SourceCopy;
+        using var transparent = new SolidBrush(Color.Transparent);
+        int[] counts = [6, 8, 8, 4, 5, 8, 6, 6, 6];
+        for (int row = 0; row < counts.Length; row++)
+        for (int column = counts[row]; column < 8; column++)
+            g.FillRectangle(transparent, column * 192, row * 208, 192, 208);
+    }
+    atlas.Save(Path.Combine(outputDirectory, "spritesheet.png"), ImageFormat.Png);
 }
 
 internal static class NativeIcon

@@ -6,7 +6,7 @@
 
 ## 当前功能
 
-- 默认显示内置苏筱桌宠（`spritesheet-chat-output.png`），并可切换到内置田偌；小豆人仅作为内部启动故障回退。
+- 默认显示内置苏筱桌宠（`spritesheet-chat-output.png`），并可切换到内置田偌或 Sweeper-EX；小豆人仅作为内部启动故障回退。
 - 安装和切换多个宠物，兼容 ChatGPT/OpenAI 的 8×9 sprite v1 与 8×11 sprite v2 `codex-pet-v2` Atlas。
 - CPU 侧一次解码 PNG，复用 32-bit premultiplied BGRA 后备缓冲、DIB 与 HDC，通过 `UpdateLayeredWindow` 提交。
 - 透明像素穿透、身体拖拽、完全鼠标穿透、总在最前、负坐标多显示器和 Per-Monitor V2 DPI。
