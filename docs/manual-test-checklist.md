@@ -52,3 +52,10 @@
 - `dotnet build SeedDormitoryCorridor.sln -c Release --no-restore` 成功，0 warnings、0 errors。
 - `dotnet test SeedDormitoryCorridor.sln -c Release --no-build` 成功，41 passed。
 - `dotnet format SeedDormitoryCorridor.sln --verify-no-changes --no-restore` 成功。
+
+## 2026-07-18 人工验收补充
+
+- 用户肉眼确认透明边缘正常，没有黑边；透明区域穿透正常；常态下任务栏和 Alt+Tab 均不出现宠物窗口。
+- Sweeper-EX 手动播放多个动画无响应，记录为 #6；根因是手动菜单请求仍受运行时优先级阻塞。
+- 宠物右键菜单显示期间任务栏出现应用图标，记录为 #7；根因是菜单通过无 owner 的顶层窗口显示。
+- 多屏往返、负坐标、拔屏、睡眠/唤醒、Explorer 重启、注销/关机和安装生命周期验收延期到 #8，本轮不判定通过。

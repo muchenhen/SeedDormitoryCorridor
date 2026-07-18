@@ -1,3 +1,5 @@
+using SeedDormitoryCorridor.Runtime;
+
 namespace SeedDormitoryCorridor.Assets.Tests;
 
 public sealed class BuiltInAssetTests
@@ -57,5 +59,43 @@ public sealed class BuiltInAssetTests
         // This light costume pixel used to be removed by the Sweeper-EX
         // generator's global near-gray cleanup, leaving visible holes in frames.
         Assert.True(package.SpriteSheet.GetAlpha(519, 37) >= 16);
+
+        foreach (AnimationDefinition animation in package.Atlas.Animations.All)
+        {
+            for (int column = 0; column < animation.FrameCount; column++)
+            {
+                int opaquePixels = CountOpaquePixels(package, animation.Row, column);
+                Assert.True(opaquePixels > 100,
+                    $"Sweeper-EX animation '{animation.Name}' frame {column} is blank or nearly blank.");
+            }
+        }
+
+        var player = new AnimationPlayer(package.Atlas.Animations, "idle");
+        long timestamp = 0;
+        foreach (AnimationDefinition animation in package.Atlas.Animations.All.OrderByDescending(item => item.Priority))
+        {
+            Assert.True(player.Play(animation.Name, timestamp++, animation.Priority, force: true, restart: true));
+            Assert.Equal(animation.Name, player.State.AnimationName);
+            Assert.Equal(0, player.State.Column);
+        }
+    }
+
+    private static int CountOpaquePixels(PetPackage package, int row, int column)
+    {
+        int count = 0;
+        int startX = column * package.Atlas.FrameWidth;
+        int startY = row * package.Atlas.FrameHeight;
+        for (int y = startY; y < startY + package.Atlas.FrameHeight; y++)
+        {
+            for (int x = startX; x < startX + package.Atlas.FrameWidth; x++)
+            {
+                if (package.SpriteSheet.GetAlpha(x, y) >= 16)
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
     }
 }
