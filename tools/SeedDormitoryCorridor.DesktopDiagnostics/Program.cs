@@ -26,9 +26,16 @@ internal static class Program
     private const uint MouseEventLeftUp = 0x0004;
     private const uint GrGdiObjects = 0;
     private const uint GrUserObjects = 1;
+    private static readonly nint DpiAwarenessContextPerMonitorAwareV2 = new(-4);
 
     private static int Main(string[] args)
     {
+        if (!SetProcessDpiAwarenessContext(DpiAwarenessContextPerMonitorAwareV2))
+        {
+            throw new Win32Exception(Marshal.GetLastWin32Error(),
+                "Could not enable Per-Monitor V2 DPI awareness for desktop diagnostics.");
+        }
+
         bool performDrag = args.Any(arg => string.Equals(arg, "--drag", StringComparison.OrdinalIgnoreCase));
         int resourceSeconds = GetOptionalPositiveIntArgument(args, "--resource-seconds");
         using Process process = ResolveProcess(args);
@@ -586,6 +593,10 @@ internal static class Program
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(nint window);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetProcessDpiAwarenessContext(nint value);
 
     [DllImport("user32.dll")]
     private static extern nint MonitorFromWindow(nint window, uint flags);
