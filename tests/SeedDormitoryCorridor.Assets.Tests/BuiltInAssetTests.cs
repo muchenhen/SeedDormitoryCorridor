@@ -41,4 +41,21 @@ public sealed class BuiltInAssetTests
         Assert.Equal(2, package.Manifest.SpriteVersionNumber);
         Assert.Equal((1536, 2288, 11), (package.Atlas.Width, package.Atlas.Height, package.Atlas.Rows));
     }
+
+    [Fact]
+    public void ShippedSweeperExPetPassesTheSameValidationPipeline()
+    {
+        string repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        string assetRoot = Path.Combine(repositoryRoot, "assets", "builtin-sweeper-ex");
+
+        using PetPackage package = new PetPackageLoader().Load(assetRoot);
+
+        Assert.Equal("builtin-sweeper-ex", package.Manifest.Id);
+        Assert.Equal("Sweeper-EX", package.Manifest.DisplayName);
+        Assert.Equal((1536, 1872, 9), (package.Atlas.Width, package.Atlas.Height, package.Atlas.Rows));
+
+        // This light costume pixel used to be removed by the Sweeper-EX
+        // generator's global near-gray cleanup, leaving visible holes in frames.
+        Assert.True(package.SpriteSheet.GetAlpha(519, 37) >= 16);
+    }
 }

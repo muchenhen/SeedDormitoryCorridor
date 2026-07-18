@@ -11,6 +11,6 @@
     <Company>SeedDormitoryCorridor contributors</Company>
     <Copyright>Copyright © SeedDormitoryCorridor contributors</Copyright>
     <VersionPrefix>0.1.0</VersionPrefix>
-    <VersionSuffix>alpha.1</VersionSuffix>
+    <VersionSuffix>alpha.2</VersionSuffix>
   </PropertyGroup>
 </Project>

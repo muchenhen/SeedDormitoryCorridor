@@ -2,11 +2,11 @@
 
 `SeedDormitoryCorridor` 是面向 Windows 11 x64 的通用 2D 桌面宠物应用。它使用 WinForms + Win32 Layered Window，在不引入浏览器、游戏引擎或插件代码的前提下，提供逐像素透明、按 Alpha 命中、动画调度和本地宠物包管理。
 
-当前公开版本为 `v0.1.0-alpha.1`。安装包和免安装 ZIP 可从 [GitHub Releases](https://github.com/muchenhen/SeedDormitoryCorridor/releases) 下载；alpha 版本尚未进行 Authenticode 签名，Windows SmartScreen 可能提示未知发布者。
+当前公开版本为 `v0.1.0-alpha.2`。安装包和免安装 ZIP 可从 [GitHub Releases](https://github.com/muchenhen/SeedDormitoryCorridor/releases) 下载；alpha 版本尚未进行 Authenticode 签名，Windows SmartScreen 可能提示未知发布者。
 
 ## 当前功能
 
-- 默认显示内置苏筱桌宠（`spritesheet-chat-output.png`），并可切换到内置田偌；小豆人仅作为内部启动故障回退。
+- 默认显示内置苏筱桌宠（`spritesheet-chat-output.png`），并可切换到内置田偌或 Sweeper-EX；小豆人仅作为内部启动故障回退。
 - 安装和切换多个宠物，兼容 ChatGPT/OpenAI 的 8×9 sprite v1 与 8×11 sprite v2 `codex-pet-v2` Atlas。
 - CPU 侧一次解码 PNG，复用 32-bit premultiplied BGRA 后备缓冲、DIB 与 HDC，通过 `UpdateLayeredWindow` 提交。
 - 透明像素穿透、身体拖拽、完全鼠标穿透、总在最前、负坐标多显示器和 Per-Monitor V2 DPI。
