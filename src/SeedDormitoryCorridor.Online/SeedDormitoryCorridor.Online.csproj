@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\SeedDormitoryCorridor.Assets\SeedDormitoryCorridor.Assets.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>SeedDormitoryCorridor.Online</RootNamespace>
+  </PropertyGroup>
+
+</Project>

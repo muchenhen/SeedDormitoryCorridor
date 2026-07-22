@@ -38,6 +38,8 @@ public sealed class AppSettings
 
     public string? MonitorDeviceName { get; set; }
 
+    public string? OnlineCatalogUrl { get; set; }
+
     public Dictionary<string, PetOverrides> PetOverrides { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 

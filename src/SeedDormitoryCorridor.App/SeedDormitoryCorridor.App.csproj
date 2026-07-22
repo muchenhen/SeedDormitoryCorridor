@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SeedDormitoryCorridor.Assets\SeedDormitoryCorridor.Assets.csproj" />
     <ProjectReference Include="..\SeedDormitoryCorridor.Configuration\SeedDormitoryCorridor.Configuration.csproj" />
+    <ProjectReference Include="..\SeedDormitoryCorridor.Online\SeedDormitoryCorridor.Online.csproj" />
     <ProjectReference Include="..\SeedDormitoryCorridor.Platform.Windows\SeedDormitoryCorridor.Platform.Windows.csproj" />
     <ProjectReference Include="..\SeedDormitoryCorridor.Rendering\SeedDormitoryCorridor.Rendering.csproj" />
     <ProjectReference Include="..\SeedDormitoryCorridor.Runtime\SeedDormitoryCorridor.Runtime.csproj" />
