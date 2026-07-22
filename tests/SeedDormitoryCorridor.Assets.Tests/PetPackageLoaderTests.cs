@@ -85,6 +85,37 @@ public sealed class PetPackageLoaderTests
         Assert.Contains(result.Issues, issue => issue.Code == "manifest.spritesheetPath.invalid");
     }
 
+    [Theory]
+    [InlineData("spritesheet.png:payload")]
+    [InlineData("CON.png")]
+    [InlineData("folder//spritesheet.png")]
+    public void RejectsUnsafeWindowsPaths(string spritePath)
+    {
+        using var package = new TestPackage();
+        package.WriteManifest(spritePath);
+
+        ValidationResult result = new PetPackageLoader().ValidateAndLoad(package.Path, out _);
+
+        Assert.Contains(result.Issues, issue => issue.Code == "manifest.spritesheetPath.invalid");
+    }
+
+    [Fact]
+    public void RejectsInvalidPetId()
+    {
+        using var package = new TestPackage();
+        File.WriteAllText(System.IO.Path.Combine(package.Path, "pet.json"), """
+            {
+              "id": "../unsafe",
+              "displayName": "Unsafe Pet",
+              "spritesheetPath": "spritesheet.png"
+            }
+            """);
+
+        ValidationResult result = new PetPackageLoader().ValidateAndLoad(package.Path, out _);
+
+        Assert.Contains(result.Issues, issue => issue.Code == "manifest.id.invalid" && issue.JsonPath == "$.id");
+    }
+
     [Fact]
     public void RejectsWrongDimensions()
     {
@@ -146,7 +177,129 @@ public sealed class PetPackageLoaderTests
         }
 
         var installer = new PetInstaller(System.IO.Path.Combine(package.Path, "pets"), System.IO.Path.Combine(package.Path, "staging"), new PetPackageLoader());
-        Assert.Throws<InvalidDataException>(() => installer.Install(zip, ExistingPetPolicy.Cancel));
+        PetPackageStagingException exception = Assert.Throws<PetPackageStagingException>(
+            () => installer.Install(zip, ExistingPetPolicy.Cancel));
+        Assert.Equal("package.path.invalid", exception.Code);
+    }
+
+    [Fact]
+    public void ValidatorAcceptsSingleWrapperDirectoryAndCleansStaging()
+    {
+        using var root = new TestPackage();
+        using var package = TestPackage.CreateValid();
+        string zip = System.IO.Path.Combine(root.Path, "wrapped.zip");
+        string staging = System.IO.Path.Combine(root.Path, "staging");
+        ZipFile.CreateFromDirectory(package.Path, zip, CompressionLevel.Fastest, includeBaseDirectory: true);
+
+        PetPackageValidationReport report = new PetPackageValidator(staging).Validate(zip);
+
+        Assert.True(report.Valid);
+        Assert.Equal("test-pet", report.Package?.Id);
+        Assert.Equal(CodexPetV2Profile.Id, report.Package?.Profile);
+        Assert.Equal((1536, 1872), (report.Package?.Width, report.Package?.Height));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(staging));
+    }
+
+    [Fact]
+    public void ValidatorRejectsMultipleManifestsAndCleansStaging()
+    {
+        using var root = new TestPackage();
+        string zip = System.IO.Path.Combine(root.Path, "multiple-manifests.zip");
+        string staging = System.IO.Path.Combine(root.Path, "staging");
+        using (ZipArchive archive = ZipFile.Open(zip, ZipArchiveMode.Create))
+        {
+            WriteTextEntry(archive, "first/pet.json", "{}");
+            WriteTextEntry(archive, "second/pet.json", "{}");
+        }
+
+        PetPackageValidationReport report = new PetPackageValidator(staging).Validate(zip);
+
+        Assert.False(report.Valid);
+        ValidationIssue issue = Assert.Single(report.Issues);
+        Assert.Equal("package.manifest.multiple", issue.Code);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(staging));
+    }
+
+    [Fact]
+    public void ValidatorRejectsDirectAndNestedManifests()
+    {
+        using var root = new TestPackage();
+        string zip = System.IO.Path.Combine(root.Path, "direct-and-nested.zip");
+        using (ZipArchive archive = ZipFile.Open(zip, ZipArchiveMode.Create))
+        {
+            WriteTextEntry(archive, "pet.json", "{}");
+            WriteTextEntry(archive, "nested/pet.json", "{}");
+        }
+
+        PetPackageValidationReport report = new PetPackageValidator(System.IO.Path.Combine(root.Path, "staging")).Validate(zip);
+
+        Assert.False(report.Valid);
+        Assert.Contains(report.Issues, issue => issue.Code == "package.manifest.multiple");
+    }
+
+    [Fact]
+    public void ValidatorRejectsMoreThanOneWrapperDirectory()
+    {
+        using var root = new TestPackage();
+        string zip = System.IO.Path.Combine(root.Path, "deep-wrapper.zip");
+        using (ZipArchive archive = ZipFile.Open(zip, ZipArchiveMode.Create))
+        {
+            WriteTextEntry(archive, "first/second/pet.json", "{}");
+        }
+
+        PetPackageValidationReport report = new PetPackageValidator(System.IO.Path.Combine(root.Path, "staging")).Validate(zip);
+
+        Assert.False(report.Valid);
+        Assert.Contains(report.Issues, issue => issue.Code == "package.root.depth");
+    }
+
+    [Fact]
+    public void ValidatorRejectsSourceThatContainsItsStagingDirectory()
+    {
+        using var root = new TestPackage();
+        string staging = System.IO.Path.Combine(root.Path, "staging");
+
+        PetPackageValidationReport report = new PetPackageValidator(staging).Validate(root.Path);
+
+        Assert.False(report.Valid);
+        Assert.Contains(report.Issues, issue => issue.Code == "package.source.overlaps-staging");
+    }
+
+    [Fact]
+    public void ValidatorRejectsZipWithTooManyEntries()
+    {
+        using var root = new TestPackage();
+        string zip = System.IO.Path.Combine(root.Path, "too-many.zip");
+        using (ZipArchive archive = ZipFile.Open(zip, ZipArchiveMode.Create))
+        {
+            for (int index = 0; index < 257; index++)
+            {
+                archive.CreateEntry($"entry-{index}.txt");
+            }
+        }
+
+        PetPackageValidationReport report = new PetPackageValidator(System.IO.Path.Combine(root.Path, "staging")).Validate(zip);
+
+        Assert.False(report.Valid);
+        Assert.Contains(report.Issues, issue => issue.Code == "package.entries.limit");
+    }
+
+    [Fact]
+    public void ValidatorRejectsZipWhoseExpandedTotalExceedsLimit()
+    {
+        using var root = new TestPackage();
+        string zip = System.IO.Path.Combine(root.Path, "expanded-too-large.zip");
+        using (ZipArchive archive = ZipFile.Open(zip, ZipArchiveMode.Create))
+        {
+            WriteSizedEntry(archive, "first.bin", 64L * 1024 * 1024);
+            WriteSizedEntry(archive, "second.bin", 64L * 1024 * 1024);
+            WriteSizedEntry(archive, "overflow.bin", 1);
+        }
+
+        PetPackageValidationReport report = new PetPackageValidator(System.IO.Path.Combine(root.Path, "staging")).Validate(zip);
+
+        Assert.False(report.Valid);
+        Assert.Contains(report.Issues, issue => issue.Code == "package.expanded-size");
     }
 
     [Fact]
@@ -162,6 +315,27 @@ public sealed class PetPackageLoaderTests
         Assert.Equal("test-pet", replaced.PetId);
         using PetPackage loaded = new PetPackageLoader().Load(replaced.InstallPath);
         Assert.Equal("Test Pet", loaded.Manifest.DisplayName);
+    }
+
+    private static void WriteTextEntry(ZipArchive archive, string path, string content)
+    {
+        ZipArchiveEntry entry = archive.CreateEntry(path);
+        using var writer = new StreamWriter(entry.Open());
+        writer.Write(content);
+    }
+
+    private static void WriteSizedEntry(ZipArchive archive, string path, long length)
+    {
+        ZipArchiveEntry entry = archive.CreateEntry(path, CompressionLevel.Fastest);
+        using Stream stream = entry.Open();
+        byte[] buffer = new byte[128 * 1024];
+        long remaining = length;
+        while (remaining > 0)
+        {
+            int count = (int)Math.Min(buffer.Length, remaining);
+            stream.Write(buffer, 0, count);
+            remaining -= count;
+        }
     }
 
     private sealed class TestPackage : IDisposable

@@ -83,6 +83,8 @@ sample-pet/
 
 未声明 profile 时，1536×1872（sprite v1）或 1536×2288（sprite v2）PNG 会自动识别为 `codex-pet-v2`；程序不会猜测其他网格。完整动画表、可选字段和校验规则见 [资产格式](docs/asset-format.md)。
 
+自动化或服务端可使用 [`sdc-pet-validator`](docs/pet-validator.md) 校验目录/ZIP，并获得稳定 JSON 与退出码；该工具与桌面导入共用同一套 staging 和资源校验逻辑。
+
 ## 制作与贡献宠物
 
 新宠物建议使用 sprite v1：它已经覆盖当前会播放的全部动画，且不需要制作尚未启用的视线跟随帧。sprite v2 适合需要保留完整 ChatGPT/OpenAI 输出的素材；使用 v2 时必须在 `pet.json` 中明确填写 `"spriteVersionNumber": 2`。
