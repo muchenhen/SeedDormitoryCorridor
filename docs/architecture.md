@@ -2,7 +2,7 @@
 
 ## 原则
 
-应用以 `PetApplicationContext` 持有全部生命周期资源，宠物窗口不是进程生命锚点。依赖方向为 App → Platform/Rendering/Assets/Configuration/Runtime，Platform → Rendering/Configuration，Rendering → Assets/Runtime，Assets → Runtime；Runtime 与 Configuration 保持平台无关。
+应用以 `PetApplicationContext` 持有全部生命周期资源，宠物窗口不是进程生命锚点。依赖方向为 App → Online/Platform/Rendering/Assets/Configuration/Runtime，Online → Assets，Platform → Rendering/Configuration，Rendering → Assets/Runtime，Assets → Runtime；Runtime 与 Configuration 保持平台无关。
 
 ## 纵向流程
 
@@ -19,6 +19,7 @@
 | Rendering | 解码后图像、后备缓冲、Alpha 坐标换算 | 菜单、配置持久化 |
 | Runtime | 动画/Idle 状态和单调时间 | WinForms Timer、文件与图片 |
 | Assets | 不可信包解析、Profile、校验、安装事务 | 当前窗口状态 |
+| Online | HTTPS 目录/预览读取、兼容性判断、限长下载、SHA-256 与 staging 安装编排 | WinForms、当前窗口、托盘、目录地址策略 |
 | PetValidator | Assets 校验管线的控制台适配、JSON 与退出码 | 独立校验规则、正式宠物目录、桌面 UI |
 | Configuration | 用户覆盖和原子 JSON 文件 | 资产包原始 Manifest |
 
@@ -32,7 +33,7 @@
 
 ## 外部依赖
 
-生产项目没有第三方 NuGet 包。`SeedDormitoryCorridor.PetValidator` 仅引用 Assets 项目，将共享 staging 与正式资源校验结果投影为机器可读 JSON；它不依赖 App、MessageBox 或交互式桌面。测试使用 xUnit（断言与执行模型）、Microsoft.NET.Test.Sdk（`dotnet test` 适配器）、xunit.runner.visualstudio 和 coverlet.collector（覆盖率采集）；它们不进入发布目录。
+生产项目没有第三方 NuGet 包。`SeedDormitoryCorridor.Online` 仅使用 .NET `HttpClient`、JSON 和加密 API，并将验证后的下载交给 Assets 安装事务；`SeedDormitoryCorridor.PetValidator` 仅引用 Assets 项目，将共享 staging 与正式资源校验结果投影为机器可读 JSON。两者都不依赖 App、MessageBox 或交互式桌面。测试使用 xUnit（断言与执行模型）、Microsoft.NET.Test.Sdk（`dotnet test` 适配器）、xunit.runner.visualstudio 和 coverlet.collector（覆盖率采集）；它们不进入发布目录。
 
 ## 风险与对策
 

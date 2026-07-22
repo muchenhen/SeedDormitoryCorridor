@@ -13,6 +13,7 @@
 - 九种动画、优先级/中断/循环/完成跳转、按真实帧时长唤醒，以及带权重和冷却的特殊 Idle。
 - 托盘生命周期、隐藏/恢复/暂停、设置、单实例 Mutex 和白名单 named-pipe IPC。
 - 目录/ZIP staging、安全路径校验、Atlas/Alpha 校验、同 ID 可回滚替换和损坏资源回退。
+- 可配置的 HTTPS 在线宠物目录，提供预览、兼容性状态、校验下载、安装、重新安装与删除。
 - 原子配置写入、损坏配置备份、当前用户开机启动、轻量本地日志。
 - 当前用户级 Inno Setup 安装器脚本，默认保留宠物和配置。
 
@@ -84,6 +85,12 @@ sample-pet/
 未声明 profile 时，1536×1872（sprite v1）或 1536×2288（sprite v2）PNG 会自动识别为 `codex-pet-v2`；程序不会猜测其他网格。完整动画表、可选字段和校验规则见 [资产格式](docs/asset-format.md)。
 
 自动化或服务端可使用 [`sdc-pet-validator`](docs/pet-validator.md) 校验目录/ZIP，并获得稳定 JSON 与退出码；该工具与桌面导入共用同一套 staging 和资源校验逻辑。
+
+## 在线宠物
+
+设置中的“在线宠物”页接受一个绝对 HTTPS 目录地址。客户端只在打开该页或点击“刷新”时访问目录和预览，不在后台轮询；目录不可用、超时或内容无效时，当前桌宠和本地宠物管理继续正常工作。
+
+安装在线宠物前，客户端会核对最低客户端版本、声明大小和 SHA-256，将 ZIP 写入随机 staging，再调用与本地导入及 `sdc-pet-validator` 相同的正式验证器。通过全部校验后才以可回滚事务安装；同 ID 重新安装采用安全替换。任意非内置宠物都可从在线页删除，删除当前宠物时会先切换到默认内置宠物，内置 ID 始终受保护。目录接口字段和限制见 [在线宠物目录](docs/online-pet-library.md)。
 
 ## 制作与贡献宠物
 
@@ -194,13 +201,14 @@ sprite v1 的未使用格为 row 0 的 column 6–7、row 3 的 column 4–7、r
 - 宠物：`%LocalAppData%\SeedDormitoryCorridor\Pets\`
 - 日志：`%LocalAppData%\SeedDormitoryCorridor\Logs\`
 
-应用没有网络服务、账号、脚本执行、自动更新或插件代码加载。
+应用没有账号、脚本执行、自动更新或插件代码加载。仅在线宠物页按用户操作访问所配置的 HTTPS 目录、预览和宠物 ZIP。
 
 ## 文档
 
 - [架构](docs/architecture.md)
 - [安全模型](docs/security.md)
 - [资产格式](docs/asset-format.md)
+- [在线宠物目录](docs/online-pet-library.md)
 - [里程碑](docs/milestones.md)
 - [Windows 人工验收](docs/manual-test-checklist.md)
 
@@ -209,7 +217,8 @@ sprite v1 的未使用格为 row 0 的 column 6–7、row 3 的 column 4–7、r
 - 第一版只支持 PNG，不支持 WebP。
 - 同时只显示一个宠物。
 - 真实透明、焦点、混合 DPI、Explorer 重启、关机/注销和安装/卸载必须在交互式 Windows 桌面按清单人工验证。
-- 没有自动更新、在线宠物商店或可执行插件。
+- 在线目录地址尚未内置，需由用户或发行渠道提供兼容的 SDCWeb API 地址。
+- 没有自动更新或可执行插件。
 
 ## 许可证
 
