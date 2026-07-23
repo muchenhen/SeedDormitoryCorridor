@@ -144,9 +144,14 @@ public sealed class PetPackageLoader
         {
             result.AddError("manifest.id.required", "id 不能为空。", "$.id");
         }
-        else if (manifest.Id.Length > 80 || manifest.Id.Any(character => !(char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.')))
+        else if (manifest.Id.Length > 80 ||
+            manifest.Id.Any(character => !(char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.')) ||
+            !PathSecurity.IsSafeRelativePath(manifest.Id))
         {
-            result.AddError("manifest.id.invalid", "id 只能包含 ASCII 字母、数字、点、短横线和下划线，且最长 80 字符。", "$.id");
+            result.AddError(
+                "manifest.id.invalid",
+                "id 必须是 Windows 安全的单个目录名，只能包含 ASCII 字母、数字、点、短横线和下划线，且最长 80 字符。",
+                "$.id");
         }
 
         if (string.IsNullOrWhiteSpace(manifest.DisplayName))

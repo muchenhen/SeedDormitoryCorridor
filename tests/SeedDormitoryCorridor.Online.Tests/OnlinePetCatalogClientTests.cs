@@ -82,6 +82,26 @@ public sealed class OnlinePetCatalogClientTests
         Assert.Equal("catalog.id.duplicate", exception.Code);
     }
 
+    [Theory]
+    [InlineData(".")]
+    [InlineData("..")]
+    [InlineData("pet.")]
+    [InlineData("CON")]
+    public async Task RejectsUnsafeWindowsPetIds(string petId)
+    {
+        OnlinePetCatalogItem item = TestSupport.CopyCatalogItem(
+            TestSupport.CreateCatalogItem([1, 2, 3]),
+            id: petId);
+        string json = JsonSerializer.Serialize(new[] { item });
+        using HttpClient httpClient = TestSupport.CreateHttpClient(_ => TestSupport.JsonResponse(json));
+        var client = new OnlinePetCatalogClient(httpClient);
+
+        OnlinePetLibraryException exception = await Assert.ThrowsAsync<OnlinePetLibraryException>(() =>
+            client.GetCatalogAsync(new Uri("https://catalog.example/pets")));
+
+        Assert.Equal("catalog.item.id", exception.Code);
+    }
+
     [Fact]
     public void DetectsIncompatibleMinimumClientVersion()
     {

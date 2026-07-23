@@ -19,6 +19,7 @@ public sealed class PetApplicationContext : ApplicationContext
     private const string BuiltInTianRuoId = "tian-ruo";
     private const string BuiltInSweeperExId = "builtin-sweeper-ex";
     private const string RecoveryPetId = "builtin-seed";
+    private const int OnlinePreviewMaximumCachedDimension = 256;
     private static readonly string[] BuiltInPetIds = [DefaultPetId, BuiltInTianRuoId, BuiltInSweeperExId, RecoveryPetId];
     private readonly AppPaths paths;
     private readonly AppLogger logger;
@@ -577,7 +578,12 @@ public sealed class PetApplicationContext : ApplicationContext
                 OnlinePetPreview preview = await onlineCatalogClient.GetPreviewAsync(item, cancellationToken);
                 using var stream = new MemoryStream(preview.PngBytes, writable: false);
                 using Image source = Image.FromStream(stream, useEmbeddedColorManagement: false, validateImageData: true);
-                var image = new Bitmap(source);
+                double scale = Math.Min(
+                    1d,
+                    (double)OnlinePreviewMaximumCachedDimension / Math.Max(source.Width, source.Height));
+                int width = Math.Max(1, (int)Math.Round(source.Width * scale));
+                int height = Math.Max(1, (int)Math.Round(source.Height * scale));
+                var image = new Bitmap(source, width, height);
                 if (settingsForm is { IsDisposed: false } form)
                 {
                     form.SetOnlinePreview(item.Id, image);

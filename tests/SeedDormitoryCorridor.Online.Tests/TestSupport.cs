@@ -44,21 +44,24 @@ internal static class TestSupport
         UpdatedAt = new DateTimeOffset(2026, 7, 22, 0, 0, 0, TimeSpan.Zero),
     };
 
-    internal static OnlinePetCatalogItem CopyCatalogItem(OnlinePetCatalogItem item, string? minimumClientVersion = null) => new()
-    {
-        Id = item.Id,
-        DisplayName = item.DisplayName,
-        Description = item.Description,
-        Author = item.Author,
-        Version = item.Version,
-        PreviewUrl = item.PreviewUrl,
-        PackageUrl = item.PackageUrl,
-        Sha256 = item.Sha256,
-        PackageSize = item.PackageSize,
-        SpriteVersionNumber = item.SpriteVersionNumber,
-        MinimumClientVersion = minimumClientVersion ?? item.MinimumClientVersion,
-        UpdatedAt = item.UpdatedAt,
-    };
+    internal static OnlinePetCatalogItem CopyCatalogItem(
+        OnlinePetCatalogItem item,
+        string? id = null,
+        string? minimumClientVersion = null) => new()
+        {
+            Id = id ?? item.Id,
+            DisplayName = item.DisplayName,
+            Description = item.Description,
+            Author = item.Author,
+            Version = item.Version,
+            PreviewUrl = item.PreviewUrl,
+            PackageUrl = item.PackageUrl,
+            Sha256 = item.Sha256,
+            PackageSize = item.PackageSize,
+            SpriteVersionNumber = item.SpriteVersionNumber,
+            MinimumClientVersion = minimumClientVersion ?? item.MinimumClientVersion,
+            UpdatedAt = item.UpdatedAt,
+        };
 
     internal static byte[] CreateValidPackage()
     {

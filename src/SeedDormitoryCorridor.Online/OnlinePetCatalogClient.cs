@@ -194,7 +194,8 @@ internal static class OnlinePetContract
     {
         ArgumentNullException.ThrowIfNull(item);
         if (string.IsNullOrWhiteSpace(item.Id) || item.Id.Length > 80 ||
-            item.Id.Any(character => !(char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.')))
+            item.Id.Any(character => !(char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.')) ||
+            !Assets.PathSecurity.IsSafeRelativePath(item.Id))
         {
             throw new OnlinePetLibraryException("catalog.item.id", "在线宠物 id 无效。");
         }
