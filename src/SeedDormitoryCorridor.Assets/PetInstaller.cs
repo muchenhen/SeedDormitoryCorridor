@@ -28,6 +28,7 @@ public sealed class PetInstaller
         using PetPackageStagingSession staged = PetPackageStagingSession.Create(sourcePath, stagingDirectory);
         using PetPackage package = loader.Load(staged.PackageRoot);
         string id = package.Manifest.Id!;
+        EnsureSafePetId(id);
         string destination = Path.Combine(petsDirectory, id);
         if (Directory.Exists(destination) && policy == ExistingPetPolicy.Cancel)
         {
@@ -61,15 +62,22 @@ public sealed class PetInstaller
 
     public void Delete(string petId)
     {
-        if (!PathSecurity.IsSafeRelativePath(petId) || petId.Contains(Path.DirectorySeparatorChar))
-        {
-            throw new ArgumentException("Invalid pet id.", nameof(petId));
-        }
+        EnsureSafePetId(petId);
 
         string target = PathSecurity.ResolveWithinRoot(petsDirectory, petId);
         if (Directory.Exists(target))
         {
             Directory.Delete(target, true);
+        }
+    }
+
+    private static void EnsureSafePetId(string petId)
+    {
+        if (!PathSecurity.IsSafeRelativePath(petId) ||
+            petId.Contains(Path.DirectorySeparatorChar) ||
+            petId.Contains(Path.AltDirectorySeparatorChar))
+        {
+            throw new ArgumentException("Invalid pet id.", nameof(petId));
         }
     }
 

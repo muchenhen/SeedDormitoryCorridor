@@ -6,6 +6,7 @@ using SeedDormitoryCorridor.App.Settings;
 using SeedDormitoryCorridor.App.SingleInstance;
 using SeedDormitoryCorridor.Assets;
 using SeedDormitoryCorridor.Configuration;
+using SeedDormitoryCorridor.Online;
 using SeedDormitoryCorridor.Platform.Windows;
 using SeedDormitoryCorridor.Rendering;
 using SeedDormitoryCorridor.Runtime;
@@ -18,12 +19,19 @@ public sealed class PetApplicationContext : ApplicationContext
     private const string BuiltInTianRuoId = "tian-ruo";
     private const string BuiltInSweeperExId = "builtin-sweeper-ex";
     private const string RecoveryPetId = "builtin-seed";
+    private const int OnlinePreviewMaximumCachedDimension = 256;
+    private static readonly string[] BuiltInPetIds = [DefaultPetId, BuiltInTianRuoId, BuiltInSweeperExId, RecoveryPetId];
     private readonly AppPaths paths;
     private readonly AppLogger logger;
     private readonly SingleInstanceCoordinator instance;
     private readonly SettingsStore settingsStore;
     private readonly PetPackageLoader packageLoader = new();
     private readonly PetInstaller installer;
+    private readonly PetCollectionManager petCollectionManager;
+    private readonly HttpClient onlineHttpClient;
+    private readonly OnlinePetCatalogClient onlineCatalogClient;
+    private readonly OnlinePetPackageInstaller onlinePackageInstaller;
+    private readonly Version clientVersion = typeof(PetApplicationContext).Assembly.GetName().Version ?? new Version(0, 1, 0);
     private readonly RuntimeClock clock = new();
     private readonly System.Windows.Forms.Timer animationTimer = new();
     private readonly Control dispatcher = new();
@@ -48,6 +56,8 @@ public sealed class PetApplicationContext : ApplicationContext
     private LayeredPetWindow? petWindow;
     private AnimationPlayer? player;
     private SettingsForm? settingsForm;
+    private CancellationTokenSource? onlineRefreshCancellation;
+    private IReadOnlyList<OnlinePetCatalogItem> onlineCatalog = [];
     private bool exiting;
 
     public PetApplicationContext(AppPaths paths, AppLogger logger, SingleInstanceCoordinator instance)
@@ -63,6 +73,19 @@ public sealed class PetApplicationContext : ApplicationContext
         }
 
         installer = new PetInstaller(paths.PetsDirectory, paths.StagingDirectory, packageLoader);
+        petCollectionManager = new PetCollectionManager(installer, BuiltInPetIds, DefaultPetId);
+        onlineHttpClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
+        {
+            Timeout = TimeSpan.FromSeconds(30),
+        };
+        onlineCatalogClient = new OnlinePetCatalogClient(onlineHttpClient);
+        onlinePackageInstaller = new OnlinePetPackageInstaller(
+            onlineHttpClient,
+            paths.StagingDirectory,
+            installer,
+            new PetPackageValidator(paths.StagingDirectory, packageLoader),
+            BuiltInPetIds,
+            clientVersion);
         dispatcher.CreateControl();
         trayIcon = new NotifyIcon
         {
@@ -101,6 +124,9 @@ public sealed class PetApplicationContext : ApplicationContext
             SystemEvents.SessionEnding -= OnSessionEnding;
             animationTimer.Stop();
             animationTimer.Dispose();
+            onlineRefreshCancellation?.Cancel();
+            onlineRefreshCancellation?.Dispose();
+            onlineHttpClient.Dispose();
             settingsForm?.Dispose();
             petWindow?.Dispose();
             currentPackage?.Dispose();
@@ -454,10 +480,16 @@ public sealed class PetApplicationContext : ApplicationContext
 
     private void ShowSettings()
     {
+        bool created = false;
         if (settingsForm is null || settingsForm.IsDisposed)
         {
+            created = true;
             settingsForm = new SettingsForm();
-            settingsForm.FormClosed += (_, _) => settingsForm = null;
+            settingsForm.FormClosed += (_, _) =>
+            {
+                onlineRefreshCancellation?.Cancel();
+                settingsForm = null;
+            };
             settingsForm.PetChanged += (_, id) => TrySwitchPet(id);
             settingsForm.SettingsChanged += (_, _) => ApplySettingsFromForm();
             settingsForm.ImportRequested += (_, _) => ImportFromDialog();
@@ -466,12 +498,261 @@ public sealed class PetApplicationContext : ApplicationContext
             settingsForm.OpenLogsRequested += (_, _) => OpenDirectory(paths.LogsDirectory);
             settingsForm.ResetRequested += (_, _) => ResetSettings();
             settingsForm.ExitRequested += (_, _) => ExitApplication();
+            settingsForm.OnlineRefreshRequested += async (_, url) => await RefreshOnlineCatalogAsync(url);
+            settingsForm.OnlineInstallRequested += async (_, id) => await InstallOnlinePetAsync(id);
+            settingsForm.OnlineDeleteRequested += (_, id) => DeletePet(id, confirm: true);
         }
 
         settingsForm.LoadValues(appSettings, GetPetItems());
+        if (created)
+        {
+            if (string.IsNullOrWhiteSpace(appSettings.OnlineCatalogUrl))
+            {
+                settingsForm.SetOnlineMessage("填写在线目录的 HTTPS 地址后即可刷新。");
+            }
+            else
+            {
+                _ = RefreshOnlineCatalogAsync(appSettings.OnlineCatalogUrl);
+            }
+        }
+
         settingsForm.Show();
         settingsForm.Activate();
     }
+
+    private async Task RefreshOnlineCatalogAsync(string catalogUrl)
+    {
+        appSettings.OnlineCatalogUrl = string.IsNullOrWhiteSpace(catalogUrl) ? null : catalogUrl.Trim();
+        SaveSettings();
+        if (!Uri.TryCreate(appSettings.OnlineCatalogUrl, UriKind.Absolute, out Uri? catalogUri) ||
+            !string.Equals(catalogUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+            !string.IsNullOrEmpty(catalogUri.UserInfo))
+        {
+            settingsForm?.SetOnlineError("目录地址必须是无凭据的绝对 HTTPS URL。");
+            return;
+        }
+
+        onlineRefreshCancellation?.Cancel();
+        var cancellation = new CancellationTokenSource();
+        onlineRefreshCancellation = cancellation;
+        settingsForm?.SetOnlineLoading();
+        try
+        {
+            onlineCatalog = await onlineCatalogClient.GetCatalogAsync(catalogUri, cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            SetOnlineCatalogOnForm();
+            await LoadOnlinePreviewsAsync(onlineCatalog, cancellation.Token);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            // A newer refresh or a closed settings window superseded this request.
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.Error("Online pet catalog request timed out.", exception);
+            settingsForm?.SetOnlineError("在线目录请求超时，本地宠物未受影响。");
+        }
+        catch (OnlinePetLibraryException exception)
+        {
+            logger.Error($"Online pet catalog failed code={exception.Code}.", exception);
+            settingsForm?.SetOnlineError($"刷新失败：{exception.Message} 本地宠物未受影响。");
+        }
+        finally
+        {
+            if (ReferenceEquals(onlineRefreshCancellation, cancellation))
+            {
+                onlineRefreshCancellation = null;
+            }
+
+            cancellation.Dispose();
+        }
+    }
+
+    private async Task LoadOnlinePreviewsAsync(IEnumerable<OnlinePetCatalogItem> items, CancellationToken cancellationToken)
+    {
+        foreach (OnlinePetCatalogItem item in items)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                OnlinePetPreview preview = await onlineCatalogClient.GetPreviewAsync(item, cancellationToken);
+                using var stream = new MemoryStream(preview.PngBytes, writable: false);
+                using Image source = Image.FromStream(stream, useEmbeddedColorManagement: false, validateImageData: true);
+                double scale = Math.Min(
+                    1d,
+                    (double)OnlinePreviewMaximumCachedDimension / Math.Max(source.Width, source.Height));
+                int width = Math.Max(1, (int)Math.Round(source.Width * scale));
+                int height = Math.Max(1, (int)Math.Round(source.Height * scale));
+                var image = new Bitmap(source, width, height);
+                if (settingsForm is { IsDisposed: false } form)
+                {
+                    form.SetOnlinePreview(item.Id, image);
+                }
+                else
+                {
+                    image.Dispose();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception) when (exception is OnlinePetLibraryException or ArgumentException or OutOfMemoryException)
+            {
+                logger.Error($"Online pet preview failed id={item.Id}.", exception);
+            }
+        }
+    }
+
+    private async Task InstallOnlinePetAsync(string petId)
+    {
+        OnlinePetCatalogItem? item = onlineCatalog.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, petId, StringComparison.OrdinalIgnoreCase));
+        if (item is null)
+        {
+            return;
+        }
+
+        HashSet<string> installed = GetInstalledPetIds();
+        OnlinePetViewModel currentState = CreateOnlinePetViewModel(item, installed);
+        if (currentState.Status == OnlinePetUiStatus.Incompatible)
+        {
+            return;
+        }
+
+        settingsForm?.SetOnlinePetState(currentState with { Status = OnlinePetUiStatus.Downloading, ErrorMessage = null });
+        try
+        {
+            PetInstallResult result = await onlinePackageInstaller.InstallAsync(item);
+            logger.Info($"Installed online pet id={result.PetId} version={item.Version}.");
+            TrySwitchPet(result.PetId);
+            RefreshMenus();
+            settingsForm?.LoadValues(appSettings, GetPetItems());
+            SetOnlinePetStatesOnForm();
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.Error($"Online pet installation timed out id={item.Id}.", exception);
+            SetOnlineInstallFailure(item, "下载超时。", installed);
+        }
+        catch (OnlinePetLibraryException exception)
+        {
+            logger.Error($"Online pet installation failed id={item.Id} code={exception.Code}.", exception);
+            string details = exception.ValidationIssues.Count > 0 ? exception.ValidationIssues[0].Message : exception.Message;
+            SetOnlineInstallFailure(item, details, GetInstalledPetIds());
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PetValidationException)
+        {
+            logger.Error($"Online pet installation failed id={item.Id}.", exception);
+            SetOnlineInstallFailure(item, exception.Message, GetInstalledPetIds());
+        }
+    }
+
+    private void SetOnlineInstallFailure(OnlinePetCatalogItem item, string message, HashSet<string> installed)
+    {
+        OnlinePetViewModel state = CreateOnlinePetViewModel(item, installed);
+        settingsForm?.SetOnlinePetState(state with
+        {
+            Status = OnlinePetUiStatus.Failed,
+            ErrorMessage = message,
+        });
+    }
+
+    private void DeletePet(string petId, bool confirm)
+    {
+        if (IsBuiltInPet(petId))
+        {
+            MessageBox.Show("内置安全宠物不能删除。", "删除宠物", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        string displayName = onlineCatalog.FirstOrDefault(item =>
+            string.Equals(item.Id, petId, StringComparison.OrdinalIgnoreCase))?.DisplayName ?? petId;
+        bool deletingCurrent = string.Equals(petId, appSettings.CurrentPetId, StringComparison.OrdinalIgnoreCase);
+        string prompt = deletingCurrent
+            ? $"确定删除当前宠物“{displayName}”？删除前会切换到内置宠物。"
+            : $"确定删除宠物“{displayName}”？";
+        if (confirm && MessageBox.Show(prompt, "删除宠物", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) != DialogResult.OK)
+        {
+            return;
+        }
+
+        try
+        {
+            PetDeleteResult result = petCollectionManager.Delete(petId, appSettings.CurrentPetId, id => TrySwitchPet(id));
+            switch (result.Status)
+            {
+                case PetDeleteStatus.Deleted:
+                    logger.Info($"Deleted pet id={petId}.");
+                    RefreshMenus();
+                    settingsForm?.LoadValues(appSettings, GetPetItems());
+                    SetOnlinePetStatesOnForm();
+                    break;
+                case PetDeleteStatus.NotInstalled:
+                    SetOnlinePetStatesOnForm();
+                    break;
+                case PetDeleteStatus.BuiltInProtected:
+                    MessageBox.Show("内置安全宠物不能删除。", "删除宠物", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    break;
+                case PetDeleteStatus.SwitchFailed:
+                    MessageBox.Show("无法切换到内置宠物，因此没有删除当前宠物。", "删除宠物", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    break;
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            logger.Error($"Failed to delete pet id={petId}.", exception);
+            MessageBox.Show(exception.Message, "删除宠物失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void SetOnlineCatalogOnForm()
+    {
+        if (settingsForm is null)
+        {
+            return;
+        }
+
+        HashSet<string> installed = GetInstalledPetIds();
+        settingsForm.SetOnlinePets(onlineCatalog.Select(item => CreateOnlinePetViewModel(item, installed)));
+    }
+
+    private void SetOnlinePetStatesOnForm()
+    {
+        if (settingsForm is null)
+        {
+            return;
+        }
+
+        HashSet<string> installed = GetInstalledPetIds();
+        foreach (OnlinePetCatalogItem item in onlineCatalog)
+        {
+            settingsForm.SetOnlinePetState(CreateOnlinePetViewModel(item, installed));
+        }
+    }
+
+    private OnlinePetViewModel CreateOnlinePetViewModel(OnlinePetCatalogItem item, HashSet<string> installed)
+    {
+        bool isInstalled = installed.Contains(item.Id);
+        if (IsBuiltInPet(item.Id))
+        {
+            return new OnlinePetViewModel(item, OnlinePetUiStatus.Incompatible, "与内置宠物 ID 冲突。", false);
+        }
+
+        if (!OnlinePetCompatibility.IsCompatible(item, clientVersion))
+        {
+            return new OnlinePetViewModel(item, OnlinePetUiStatus.Incompatible, IsInstalled: isInstalled);
+        }
+
+        return new OnlinePetViewModel(
+            item,
+            isInstalled ? OnlinePetUiStatus.Installed : OnlinePetUiStatus.NotInstalled,
+            IsInstalled: isInstalled);
+    }
+
+    private HashSet<string> GetInstalledPetIds() => installer.ListInstalled()
+        .Select(item => item.Id)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     private void ApplySettingsFromForm()
     {
@@ -569,24 +850,7 @@ public sealed class PetApplicationContext : ApplicationContext
     private void DeleteCurrentPet()
     {
         string id = appSettings.CurrentPetId ?? DefaultPetId;
-        if (IsBuiltInPet(id))
-        {
-            MessageBox.Show("内置安全宠物不能删除。", "删除宠物", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        if (MessageBox.Show($"确定删除当前宠物 '{currentPackage?.Manifest.DisplayName}'？将先切换到内置宠物。", "删除宠物",
-                MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) != DialogResult.OK)
-        {
-            return;
-        }
-
-        if (TrySwitchPet(DefaultPetId))
-        {
-            installer.Delete(id);
-            RefreshMenus();
-            settingsForm?.LoadValues(appSettings, GetPetItems());
-        }
+        DeletePet(id, confirm: true);
     }
 
     private void ResetSettings()

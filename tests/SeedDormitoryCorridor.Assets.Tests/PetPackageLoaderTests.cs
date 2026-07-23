@@ -116,6 +116,41 @@ public sealed class PetPackageLoaderTests
         Assert.Contains(result.Issues, issue => issue.Code == "manifest.id.invalid" && issue.JsonPath == "$.id");
     }
 
+    [Theory]
+    [InlineData(".")]
+    [InlineData("..")]
+    [InlineData("pet.")]
+    [InlineData("CON")]
+    [InlineData("aux.txt")]
+    public void RejectsPetIdsThatAreUnsafeWindowsDirectoryNames(string petId)
+    {
+        using var package = new TestPackage();
+        File.WriteAllText(System.IO.Path.Combine(package.Path, "pet.json"), JsonSerializer.Serialize(new
+        {
+            id = petId,
+            displayName = "Unsafe Pet",
+            spritesheetPath = "spritesheet.png",
+        }));
+
+        ValidationResult result = new PetPackageLoader().ValidateAndLoad(package.Path, out _);
+
+        Assert.Contains(result.Issues, issue => issue.Code == "manifest.id.invalid" && issue.JsonPath == "$.id");
+    }
+
+    [Theory]
+    [InlineData("nested/pet")]
+    [InlineData("nested\\pet")]
+    public void DeleteRejectsNestedPetIds(string petId)
+    {
+        using var package = new TestPackage();
+        var installer = new PetInstaller(
+            System.IO.Path.Combine(package.Path, "pets"),
+            System.IO.Path.Combine(package.Path, "staging"),
+            new PetPackageLoader());
+
+        Assert.Throws<ArgumentException>(() => installer.Delete(petId));
+    }
+
     [Fact]
     public void RejectsWrongDimensions()
     {
