@@ -19,6 +19,7 @@
 | Rendering | 解码后图像、后备缓冲、Alpha 坐标换算 | 菜单、配置持久化 |
 | Runtime | 动画/Idle 状态和单调时间 | WinForms Timer、文件与图片 |
 | Assets | 不可信包解析、Profile、校验、安装事务 | 当前窗口状态 |
+| PetValidator | Assets 校验管线的控制台适配、JSON 与退出码 | 独立校验规则、正式宠物目录、桌面 UI |
 | Configuration | 用户覆盖和原子 JSON 文件 | 资产包原始 Manifest |
 
 ## 资源所有权
@@ -31,7 +32,7 @@
 
 ## 外部依赖
 
-生产项目没有第三方 NuGet 包。测试使用 xUnit（断言与执行模型）、Microsoft.NET.Test.Sdk（`dotnet test` 适配器）、xunit.runner.visualstudio 和 coverlet.collector（覆盖率采集）；它们不进入发布目录。
+生产项目没有第三方 NuGet 包。`SeedDormitoryCorridor.PetValidator` 仅引用 Assets 项目，将共享 staging 与正式资源校验结果投影为机器可读 JSON；它不依赖 App、MessageBox 或交互式桌面。测试使用 xUnit（断言与执行模型）、Microsoft.NET.Test.Sdk（`dotnet test` 适配器）、xunit.runner.visualstudio 和 coverlet.collector（覆盖率采集）；它们不进入发布目录。
 
 ## 风险与对策
 

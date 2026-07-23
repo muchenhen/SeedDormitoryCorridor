@@ -122,7 +122,7 @@ public sealed class PetPackageLoader
             ValidateAlpha(decoded, atlas, result, spritePath);
             if (result.IsValid)
             {
-                package = new PetPackage(root, manifest, atlas, decoded);
+                package = new PetPackage(root, manifest, profile.ProfileId, atlas, decoded);
                 decoded = null;
             }
         }
